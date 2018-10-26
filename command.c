@@ -6,7 +6,9 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
-// #include <fcntl.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <sys/types.h>
 
 void initCmd(struct Command* cmd) {
     cmd->cmdName = NULL;
@@ -107,7 +109,29 @@ int Msg2Command(char* msg, struct Command* cmd) {
         cmd->cmdName[--len] = '\0';
 
     if (cnt == 1) {
+        cmd->num_params = 0;
         cmd->params = NULL;
+        return 0;
+    }
+
+    // get full path
+    if (strcmp(cmd->cmdName, "LIST") == 0 ||
+        strcmp(cmd->cmdName, "CWD") == 0 ||
+        strcmp(cmd->cmdName, "MKD") == 0){
+        cmd->num_params = 1;
+        cmd->params = malloc(cmd->num_params*sizeof(char*));
+        while ((*msg) == ' '){
+            msg++;
+            continue;
+        }
+        len = strlen(msg);
+        cmd->params[0] = malloc((len+1)*sizeof(char));
+        for (i = 0; i < len; ++i)
+            cmd->params[0][i] = msg[i];
+        while (len > 0 &&
+            (cmd->params[0][len-1] == '\n' ||
+                cmd->params[0][len-1] == '\r'))
+            cmd->params[0][--len] = '\0';
         return 0;
     }
 
@@ -127,7 +151,9 @@ int Msg2Command(char* msg, struct Command* cmd) {
             cmd->params[cnt][i] = msg[i];
         cmd->params[cnt][len] = '\0';
         msg += len;
-        while (cmd->params[cnt][len-1] == '\n' || cmd->params[cnt][len-1] == '\r')
+        while (len > 0 &&
+            (cmd->params[cnt][len-1] == '\n' ||
+                cmd->params[cnt][len-1] == '\r'))
             cmd->params[cnt][--len] = '\0';
         cnt++;
     }
@@ -180,15 +206,18 @@ int CmdHandle(struct Command cmd, int connfd, char* msg, int maxlen) {
 
     } else
     if (strcmp(cmd.cmdName, "MKD") == 0) {
-
+        if (cmd.num_params == 1 && mkdir(cmd.params[0], S_IRWXU | S_IRWXG | S_IRWXO) == 0){
+            msg = "200 MKD success!\r\n\0";
+            p = sendMsg(connfd, msg, strlen(msg));
+        } else
+        {
+            msg = "500 MKD Failed!\r\n\0";
+            p = sendMsg(connfd, msg, strlen(msg));
+        }
     } else
     if (strcmp(cmd.cmdName, "CWD") == 0) {
         if (cmd.num_params == 1 && chdir(cmd.params[0]) == 0){
             msg = "200 CWD success!\r\n\0";
-            p = sendMsg(connfd, msg, strlen(msg));
-        } else
-        if (cmd.num_params != 1){
-            msg = "500 CWD params error!\r\n\0";
             p = sendMsg(connfd, msg, strlen(msg));
         } else
         {
@@ -206,7 +235,6 @@ int CmdHandle(struct Command cmd, int connfd, char* msg, int maxlen) {
             insertScode(msg);
             p = sendMsg(connfd, msg, strlen(msg));
         }
-
     } else
     if (strcmp(cmd.cmdName, "LIST") == 0) {
 
