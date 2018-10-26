@@ -5,6 +5,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <unistd.h>
 // #include <fcntl.h>
 
 void initCmd(struct Command* cmd) {
@@ -53,6 +54,22 @@ int getlen(char* msg){
         msg++;
     }
     return len;
+}
+
+void insertScode(char* msg){
+    size_t len = strlen(msg);
+    for (int i = len; i > 0; --i){
+        msg[i+3] = msg[i-1];
+    }
+    msg[0] = '2', msg[1] = '0';
+    msg[2] = '0', msg[3] = ' ';
+    len = strlen(msg);
+    while (len > 0 && (msg[len-1] == '\n' || msg[len-1] == '\r')){
+        msg[--len] = '\0';
+    }
+    msg[len++] = '\r';
+    msg[len++] = '\n';
+    msg[len] = '\0';
 }
 
 int Msg2Command(char* msg, struct Command* cmd) {
@@ -142,11 +159,19 @@ int CmdHandle(struct Command cmd, int connfd, char* msg, int maxlen) {
         printf("In SYST\n");
         // sampleOsType(msg);
         strcpy(msg, "215 Linux\r\n\0");
-        printf("%s", msg);
+        // printf("%s", msg);
         p = sendMsg(connfd, msg, strlen(msg));
     } else
     if (strcmp(cmd.cmdName, "TYPE") == 0) {
-
+        printf("IN TYPE\n");
+        if (cmd.num_params >= 1 && strcmp(cmd.params[0], "I") == 0){
+            strcpy(msg, "200 Type set to I.\r\n\0");
+            p = sendMsg(connfd, msg, strlen(msg));
+        } else
+        {
+            strcpy(msg, "201 No this type!\r\n\0");
+            p = sendMsg(connfd, msg, strlen(msg));
+        }
     } else
     if (strcmp(cmd.cmdName, "PORT") == 0) {
 
@@ -158,9 +183,29 @@ int CmdHandle(struct Command cmd, int connfd, char* msg, int maxlen) {
 
     } else
     if (strcmp(cmd.cmdName, "CWD") == 0) {
-
+        if (cmd.num_params == 1 && chdir(cmd.params[0]) == 0){
+            msg = "200 CWD success!\r\n\0";
+            p = sendMsg(connfd, msg, strlen(msg));
+        } else
+        if (cmd.num_params != 1){
+            msg = "500 CWD params error!\r\n\0";
+            p = sendMsg(connfd, msg, strlen(msg));
+        } else
+        {
+            msg = "500 CWD Failed!\r\n\0";
+            p = sendMsg(connfd, msg, strlen(msg));
+        }
     } else
     if (strcmp(cmd.cmdName, "PWD") == 0) {
+        if (getcwd(msg, maxlen) == NULL){
+            printf("Error getcwd");
+            msg = "500 PWD Failed!\r\n\0";
+            p = sendMsg(connfd, msg, strlen(msg));
+        } else
+        {
+            insertScode(msg);
+            p = sendMsg(connfd, msg, strlen(msg));
+        }
 
     } else
     if (strcmp(cmd.cmdName, "LIST") == 0) {
@@ -176,8 +221,11 @@ int CmdHandle(struct Command cmd, int connfd, char* msg, int maxlen) {
 
     } else
     {
-
+        printf("No this cmd!\n");
+        strcpy(msg, nocmdStr);
+        p = sendMsg(connfd, msg, strlen(msg));
     }
+
     if (p < 0) {    // error code!
         printf("sendMsg Error! %d\n", -p);
         return p;

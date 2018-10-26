@@ -202,7 +202,7 @@ int main(int argc, char **argv) {
 
 	memset(&addr, 0, sizeof(addr));
 	addr.sin_family = AF_INET;
-	addr.sin_port = 6789;
+	addr.sin_port = htons(6789);
 	addr.sin_addr.s_addr = htonl(INADDR_ANY);
 
 

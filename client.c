@@ -113,11 +113,13 @@ int communicate(int sockfd) {
         return p;
     }
 
-    p = waitMsg(sockfd, rec, MAXBUFLEN);
-    if (p < 0) {    // error code!
-        printf("waitMsg Error! %d\n", -p);
-        return p;
-    }
+    do{
+        p = waitMsg(sockfd, rec, MAXBUFLEN);
+        if (p < 0) {    // error code!
+            printf("waitMsg Error! %d\n", -p);
+            return p;
+        }
+    } while (!startWithDDDS(rec));
 
     if (isByeMsg(rec)){
         return -ERRORQUIT;
@@ -137,12 +139,11 @@ int main(int argc, char **argv) {
 
     memset(&addr, 0, sizeof(addr));
     addr.sin_family = AF_INET;
-    addr.sin_port = 6789;
+    addr.sin_port = htons(6789);
     if (inet_pton(AF_INET, "127.0.0.1", &addr.sin_addr) <= 0) {
         printf("Error inet_pton(): %s(%d)\n", strerror(errno), errno);
         return 1;
     }
-
 
     if (connect(sockfd, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
         printf("Error connect(): %s(%d)\n", strerror(errno), errno);
