@@ -117,7 +117,8 @@ int Msg2Command(char* msg, struct Command* cmd) {
     // get full path
     if (strcmp(cmd->cmdName, "LIST") == 0 ||
         strcmp(cmd->cmdName, "CWD") == 0 ||
-        strcmp(cmd->cmdName, "MKD") == 0){
+        strcmp(cmd->cmdName, "MKD") == 0 ||
+        strcmp(cmd->cmdName, "RMD") == 0){
         cmd->num_params = 1;
         cmd->params = malloc(cmd->num_params*sizeof(char*));
         while ((*msg) == ' '){
@@ -240,7 +241,14 @@ int CmdHandle(struct Command cmd, int connfd, char* msg, int maxlen) {
 
     } else
     if (strcmp(cmd.cmdName, "RMD") == 0) {
-
+        if (cmd.num_params == 1 && rmdir(cmd.params[0]) == 0){
+            msg = "200 RMD success!\r\n\0";
+            p = sendMsg(connfd, msg, strlen(msg));
+        } else
+        {
+            msg = "500 RMD Failed!\r\n\0";
+            p = sendMsg(connfd, msg, strlen(msg));
+        }
     } else
     if (strcmp(cmd.cmdName, "RNFR") == 0) {
 
