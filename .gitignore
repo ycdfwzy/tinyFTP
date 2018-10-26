@@ -1,0 +1,8 @@
+# binary
+server
+client
+
+# clion
+.idea
+CMakeLists.txt
+cmake-build-debug
