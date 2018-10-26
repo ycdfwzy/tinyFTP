@@ -12,12 +12,9 @@
 #include "command.h"
 #include "errorcode.h"
 #include "socketutils.h"
+#include "constants.h"
 
-const int MAXBUFLEN = 8192;
-const char* readyStr = "220 Anonymous FTP server ready.\r\n\0";
-const char* passwStr = "331 Guest login ok, send your complete e-mail address as password.\r\n\0";
-const char* greetStr = "230 Guest login ok, access restrictions apply.\r\n\0";
-// const char* loginStr = "230 Guest login ok, access restrictions apply.\r\n\0";
+// const int MAXBUFLEN = 8192;
 
 int login(int connfd, char* sentence, int maxlen) {
     struct Command cmd;
@@ -159,7 +156,7 @@ int comunicate(int connfd, char* sentence, int maxlen) {
         printf("Msg2Command Error: %d\n", -p);
         return p;
     }
-    p = CmdHandle(&cmd, connfd, sentence, maxlen);
+    p = CmdHandle(cmd, connfd, sentence, maxlen);
     if (p < 0) {    // error code
         printf("CmdHandle Error: %d\n", -p);
         return p;
@@ -167,51 +164,7 @@ int comunicate(int connfd, char* sentence, int maxlen) {
 
     releCmd(&cmd);
     return 0;
-    // if (strcmp(cmd.cmdName, "RETR") == 0) {
-
-    // } else
-    // if (strcmp(cmd.cmdName, "STOR") == 0) {
-
-    // } else
-    // if (strcmp(cmd.cmdName, "QUIT") == 0) {
-
-    // } else
-    // if (strcmp(cmd.cmdName, "SYST") == 0) {
-
-    // } else
-    // if (strcmp(cmd.cmdName, "TYPE") == 0) {
-
-    // } else
-    // if (strcmp(cmd.cmdName, "PORT") == 0) {
-
-    // } else
-    // if (strcmp(cmd.cmdName, "PASV") == 0) {
-
-    // } else
-    // if (strcmp(cmd.cmdName, "MKD") == 0) {
-
-    // } else
-    // if (strcmp(cmd.cmdName, "CWD") == 0) {
-
-    // } else
-    // if (strcmp(cmd.cmdName, "PWD") == 0) {
-
-    // } else
-    // if (strcmp(cmd.cmdName, "LIST") == 0) {
-
-    // } else
-    // if (strcmp(cmd.cmdName, "RMD") == 0) {
-
-    // } else
-    // if (strcmp(cmd.cmdName, "RNFR") == 0) {
-
-    // } else
-    // if (strcmp(cmd.cmdName, "RNTO") == 0) {
-
-    // } else
-    // {
-
-    // }
+    
 }
 
 int serve_client(int connfd){
@@ -219,15 +172,18 @@ int serve_client(int connfd){
 	char sentence[MAXBUFLEN];
     
 
-    p = login(connfd, sentence, MAXBUFLEN);
-    if (p < 0) {    // error code
-        printf("login Error: %d\n", -p);
-        return -p;
-    }
+    // p = login(connfd, sentence, MAXBUFLEN);
+    // if (p < 0) {    // error code
+    //     printf("login Error: %d\n", -p);
+    //     return -p;
+    // }
 
-    p = comunicate(connfd, sentence, MAXBUFLEN);
-    if (p < 0) {    // error code
-        printf("comunicate Error: %d\n", -p);
+    while (1) {
+        p = comunicate(connfd, sentence, MAXBUFLEN);
+        if (p < 0) {    // error code
+            printf("comunicate Error: %d\n", -p);
+            return -p;
+        }
     }
 	return 0;
 }
@@ -263,14 +219,19 @@ int main(int argc, char **argv) {
 		return ERRORLISTEN;
 	}
 
-    if ((connfd = accept(listenfd, NULL, NULL)) == -1) {
-        printf("Error accept(): %s(%d)\n", strerror(errno), errno);
-//        continue;
-    }
 	while (1) {
-		int serve_ret = serve_client(connfd);
-		printf("serve_client\n");
+        if ((connfd = accept(listenfd, NULL, NULL)) == -1) {
+            printf("Error accept(): %s(%d)\n", strerror(errno), errno);
+            continue;
+        }
 
+		int serve_ret = serve_client(connfd);
+		printf("serve_client finished\n");
+        if (serve_ret == ERRORQUIT){
+            printf("Client disconnect Successfully!\n");
+            close(connfd);
+            continue;
+        } else
 		if (serve_ret != 0 && serve_ret != ERRORREAD){
             close(connfd);
 			return serve_ret;

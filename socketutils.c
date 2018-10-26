@@ -27,10 +27,9 @@ int waitMsg(int connfd, char* msg, int MAXLEN) {
 
 int sendMsg(int connfd, char* msg, int len){
     int p = 0;
-    printf("%s\n", msg);
-    printf("before finished!\n");
+    // printf("before finished!\n");
     while (p < len) {
-        printf("%d %d\n", p, len);
+        // printf("%d %d\n", p, len);
         int n = write(connfd, msg + p, len - p);
         if (n < 0) {
             printf("Error write(): %s(%d)\n", strerror(errno), errno);
@@ -39,6 +38,7 @@ int sendMsg(int connfd, char* msg, int len){
             p += n;
         }
     }
-    printf("write finished!\n");
+    printf("send finished: %s", msg);
+    // printf("write finished!\n");
     return 0;
 }

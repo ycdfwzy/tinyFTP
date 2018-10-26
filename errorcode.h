@@ -9,6 +9,7 @@ enum ERRORC{
     ERRORWRITE,
     ERRORNOCMD,
     ERRORINVALIDRES,
+    ERRORQUIT,
 };
 
 #endif

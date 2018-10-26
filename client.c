@@ -9,9 +9,13 @@
 #include <memory.h>
 #include <stdio.h>
 #include "socketutils.h"
+#include "constants.h"
 
 #define isDigit(c) ((c)>='0' && (c)<='9')
 #define isSpace(c) ((c)==' ')
+// const int MAXBUFLEN = 8192;
+char rec[8192];
+char snd[8192];
 
 // check if string strat with Digit-Digit-Digit-Space
 int startWithDDDS(const char* st){
@@ -39,6 +43,17 @@ int getInput(char* s){
     s[len++] = '\n';
     s[len] = '\0';
     return len;
+}
+
+int isByeMsg(char* msg){
+    int len = strlen(msg);
+    while (len > 0 && (msg[len-1] == '\n' || msg[len-1] == '\r')){
+        msg[--len] = '\0';
+    }
+    msg[len++] = '\r';
+    msg[len++] = '\n';
+    msg[len] = '\0';
+    return strcmp(msg, byeStr) == 0;
 }
 
 int login(int sockfd, char* sentence, int maxlen){
@@ -90,11 +105,29 @@ int login(int sockfd, char* sentence, int maxlen){
     return 0;
 }
 
+int communicate(int sockfd) {
+    int len = getInput(snd);
+    int p = sendMsg(sockfd, snd, len);
+    if (p < 0) {    // error code!
+        printf("sendMsg Error! %d\n", -p);
+        return p;
+    }
+
+    p = waitMsg(sockfd, rec, MAXBUFLEN);
+    if (p < 0) {    // error code!
+        printf("waitMsg Error! %d\n", -p);
+        return p;
+    }
+
+    if (isByeMsg(rec)){
+        return -ERRORQUIT;
+    }
+    return 0;
+}
+
 int main(int argc, char **argv) {
 	int sockfd;
 	struct sockaddr_in addr;
-	char sentence[8192];
-	int len;
 	int p;
 
     if ((sockfd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) == -1) {
@@ -116,48 +149,23 @@ int main(int argc, char **argv) {
         return 1;
     }
 
+    // p = login(sockfd, sentence, 8192);
+    // if (p < 0) {
+    //     close(sockfd);
+    //     printf("login Error! %d\n", -p);
+    //     return -p;
+    // }
     while (1) {
-        login(sockfd, sentence, 8192);
-        break;
-        // fgets(sentence, 4096, stdin);
-        // len = strlen(sentence);
-        // sentence[len] = '\n';
-        // sentence[len + 1] = '\0';
-
-        // p = 0;
-        // while (p < len) {
-        //     int n = write(sockfd, sentence + p, len + 1 - p);
-        //     if (n < 0) {
-        //         printf("Error write(): %s(%d)\n", strerror(errno), errno);
-        //         return 1;
-        //     } else {
-        //         p += n;
-        //     }
-        // }
-
-        // p = 0;
-        // printf("recv start!\n");
-        // while (1) {
-        //     printf("%d\n", p);
-        //     int n = read(sockfd, sentence + p, 8191 - p);
-        //     if (n < 0) {
-        //         printf("Error read(): %s(%d)\n", strerror(errno), errno);
-        //         return 1;
-        //     } else if (n == 0) {
-        //         printf("n = 0\n");
-        //         break;
-        //     } else {
-        //         p += n;
-        //         if (sentence[p - 1] == '\n') {
-        //             break;
-        //         }
-        //     }
-        // }
-        // printf("recv finish!\n");
-
-        // sentence[p - 1] = '\0';
-
-        // printf("FROM SERVER: %s", sentence);
+        p = communicate(sockfd);
+        if (p == -ERRORQUIT){
+            printf("Disconnect Successfully!\n");
+            break;
+        } else
+        if (p < 0) {
+            close(sockfd);
+            printf("login Error! %d\n", -p);
+            return -p;
+        }
     }
     close(sockfd);
 	return 0;
