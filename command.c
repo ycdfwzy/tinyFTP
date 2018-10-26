@@ -6,9 +6,12 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
-#include <sys/stat.h>
 #include <fcntl.h>
+#include <dirent.h>
+#include <sys/stat.h>
 #include <sys/types.h>
+
+char oldpath[8192] = "\0";
 
 void initCmd(struct Command* cmd) {
     cmd->cmdName = NULL;
@@ -30,6 +33,22 @@ void releCmd(struct Command* cmd) {
         cmd->params = NULL;
         cmd->num_params = 0;
     }
+}
+
+int is_regular_file(const char *path) {
+    struct stat path_stat;
+    if (stat(path, &path_stat) != 0){
+        return 0;
+    }
+    return S_ISREG(path_stat.st_mode);
+}
+
+int is_directory(const char* path) {
+    struct stat path_stat;
+    if (stat(path, &path_stat) != 0){
+        return 0;
+    }
+    return S_ISDIR(path_stat.st_mode);
 }
 
 // void sampleOsType(char* buffer){
@@ -118,7 +137,9 @@ int Msg2Command(char* msg, struct Command* cmd) {
     if (strcmp(cmd->cmdName, "LIST") == 0 ||
         strcmp(cmd->cmdName, "CWD") == 0 ||
         strcmp(cmd->cmdName, "MKD") == 0 ||
-        strcmp(cmd->cmdName, "RMD") == 0){
+        strcmp(cmd->cmdName, "RMD") == 0 ||
+        strcmp(cmd->cmdName, "RNFR") == 0 ||
+        strcmp(cmd->cmdName, "RNTO") == 0){
         cmd->num_params = 1;
         cmd->params = malloc(cmd->num_params*sizeof(char*));
         while ((*msg) == ' '){
@@ -164,6 +185,18 @@ int Msg2Command(char* msg, struct Command* cmd) {
 int CmdHandle(struct Command cmd, int connfd, char* msg, int maxlen) {
     int p;
     printf("%s\n", cmd.cmdName);
+
+    if (oldpath[0] != '\0'){ // RNFR to handle
+        if (strcmp(cmd.cmdName, "RNTO") != 0){
+            msg = "500 Please send target name!\r\n\0";
+            p = sendMsg(connfd, msg, strlen(msg));
+            if (p < 0) {    // error code!
+                printf("sendMsg Error! %d\n", -p);
+                return p;
+            }
+            return 0;
+        }
+    }
 
     if (strcmp(cmd.cmdName, "RETR") == 0) {
 
@@ -251,13 +284,30 @@ int CmdHandle(struct Command cmd, int connfd, char* msg, int maxlen) {
         }
     } else
     if (strcmp(cmd.cmdName, "RNFR") == 0) {
-
+        struct stat path_stat;
+        if (cmd.num_params == 1 && stat(cmd.params[0], &path_stat) == 0){
+            msg = "200 Please send target name!\r\n\0";
+            p = sendMsg(connfd, msg, strlen(msg));
+            strcpy(oldpath, cmd.params[0]);
+        } else
+        {
+            msg = "500 RNFR Failed!\r\n\0";
+            p = sendMsg(connfd, msg, strlen(msg));
+        }
     } else
     if (strcmp(cmd.cmdName, "RNTO") == 0) {
-
+        if (cmd.num_params == 1 && rename(oldpath, cmd.params[0]) == 0){
+            msg = "200 Rename successfully!\r\n\0";
+            p = sendMsg(connfd, msg, strlen(msg));
+            oldpath[0] = '\0';
+        } else
+        {
+            msg = "500 RNTO Failed!\r\n\0";
+            p = sendMsg(connfd, msg, strlen(msg));
+        }
     } else
     {
-        printf("No this cmd!\n");
+        printf("Undefined cmd!\n");
         strcpy(msg, nocmdStr);
         p = sendMsg(connfd, msg, strlen(msg));
     }
