@@ -10,6 +10,7 @@
 #include <dirent.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <time.h>
 
 char oldpath[8192] = "\0";
 char curpath[8192];
@@ -247,7 +248,32 @@ int cmd_LISTD(int connfd, char* pathname, char* msg, int maxlen) {
 }
 
 int cmd_LISTF(int connfd, char* curpath, char* msg, int maxlen) {
-    return 0;
+    int p;
+    struct stat path_stat;
+    if (stat(curpath, &path_stat) != 0){ //nearly impossible
+        printf("File not found!\n");
+        msg = "500 File not found!\r\n\0";
+        p = sendMsg(connfd, msg, strlen(msg));
+        return p;
+    }
+    if (S_ISDIR(path_stat.st_mode)){ //nearly impossible
+        printf("Not file!\n");
+        msg = "500 Not file!\r\n\0";
+        p = sendMsg(connfd, msg, strlen(msg));
+        return p;
+    }
+
+    int t = strlen(curpath);
+    while (t > 0 && curpath[t-1] != '/')
+        t--;
+    // printf("%x\n", &(path_stat.st_atime));
+    // printf("%x\n", &(path_stat.st_mtime));
+    sprintf(msg, "200 name: %s; size: %lu bytes; last access: %s; last modification: %s\r\n",
+                    curpath+t, path_stat.st_size,
+                    asctime(localtime(&(path_stat.st_atime))),
+                    asctime(localtime(&(path_stat.st_mtime))) );
+    p = sendMsg(connfd, msg, strlen(msg));
+    return p;
 }
 
 int CmdHandle(struct Command cmd, int connfd, char* msg, int maxlen) {
