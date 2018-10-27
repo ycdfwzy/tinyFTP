@@ -2,6 +2,7 @@
 #include "errorcode.h"
 #include "socketutils.h"
 #include "constants.h"
+#include "dataserver.h"
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -14,6 +15,7 @@
 
 char oldpath[8192] = "\0";
 char curpath[8192];
+char tmp[8192];
 
 void initCmd(struct Command* cmd) {
     cmd->cmdName = NULL;
@@ -98,6 +100,19 @@ void insertScode(char* msg){
     msg[len++] = '\r';
     msg[len++] = '\n';
     msg[len] = '\0';
+}
+
+void format(char* s, char* t) {
+    int len = strlen(s);
+    int i, j;
+    for (i = 0, j = 0; i < len; ++i){
+        if (s[i] == '"'){
+            t[j++] = '"';
+            t[j++] = '"';
+        } else
+            t[j++] = s[i];
+        }
+    t[j] = '\0';
 }
 
 int Msg2Command(char* msg, struct Command* cmd) {
@@ -282,7 +297,7 @@ int CmdHandle(struct Command cmd, int connfd, char* msg, int maxlen) {
 
     if (oldpath[0] != '\0'){ // RNFR to handle
         if (strcmp(cmd.cmdName, "RNTO") != 0){
-            msg = "500 Please send target name!\r\n\0";
+            msg = "503 Please send target name!\r\n\0";
             p = sendMsg(connfd, msg, strlen(msg));
             if (p < 0) {    // error code!
                 printf("sendMsg Error! %d\n", -p);
@@ -293,11 +308,13 @@ int CmdHandle(struct Command cmd, int connfd, char* msg, int maxlen) {
     }
 
     if (strcmp(cmd.cmdName, "RETR") == 0) {
-
+        msg = "425 Please choose mode(PORT/PASV)\r\n\0";
+        p = sendMsg(connfd, msg, strlen(msg));
     } else
 
     if (strcmp(cmd.cmdName, "STOR") == 0) {
-
+        msg = "425 Please choose mode(PORT/PASV)\r\n\0";
+        p = sendMsg(connfd, msg, strlen(msg));
     } else
 
     if (strcmp(cmd.cmdName, "QUIT") == 0 ||
@@ -313,51 +330,74 @@ int CmdHandle(struct Command cmd, int connfd, char* msg, int maxlen) {
     } else
 
     if (strcmp(cmd.cmdName, "SYST") == 0) {
-        printf("In SYST\n");
-        // sampleOsType(msg);
-        strcpy(msg, "215 Linux\r\n\0");
-        // printf("%s", msg);
+        strcpy(msg, "215 UNIX Type: L8\r\n\0");
         p = sendMsg(connfd, msg, strlen(msg));
     } else
 
     if (strcmp(cmd.cmdName, "TYPE") == 0) {
-        printf("IN TYPE\n");
-        if (cmd.num_params >= 1 && strcmp(cmd.params[0], "I") == 0){
+        // printf("IN TYPE\n");
+        if (cmd.num_params == 1 &&
+            (strcmp(cmd.params[0], "I") == 0 || strcmp(cmd.params[0], "i"))){
             strcpy(msg, "200 Type set to I.\r\n\0");
             p = sendMsg(connfd, msg, strlen(msg));
         } else
         {
-            strcpy(msg, "201 No this type!\r\n\0");
+            strcpy(msg, "500 No this type!\r\n\0");
             p = sendMsg(connfd, msg, strlen(msg));
         }
     } else
 
     if (strcmp(cmd.cmdName, "PORT") == 0) {
-
+        // printf("in PORT\n");
+        if (cmd.num_params == 1){
+            p = conSer(cmd.params[0]);
+            switch (-p){
+                case 0:
+                    msg = "200 PORT command successful.\r\n\0";
+                    p = sendMsg(connfd, msg, strlen(msg));
+                    break;
+                case ERRORIPPORT:
+                    printf("Error IP/PORT in PORT!\n");
+                    msg = "500 error ip/port in PORT\r\n\0";
+                    p = sendMsg(connfd, msg, strlen(msg));
+                    break;
+                default:
+                    printf("Connect Error in PORT!\n");
+                    msg = "500 connect error in PORT\r\n\0";
+                    p = sendMsg(connfd, msg, strlen(msg));
+            }
+        } else
+        {
+            msg = "500 error params in PORT!\r\n\0";
+            p = sendMsg(connfd, msg, strlen(msg));
+        }
     } else
 
     if (strcmp(cmd.cmdName, "PASV") == 0) {
-
+        
     } else
 
     if (strcmp(cmd.cmdName, "MKD") == 0) {
         if (cmd.num_params == 1 && mkdir(cmd.params[0], S_IRWXU | S_IRWXG | S_IRWXO) == 0){
-            msg = "200 MKD success!\r\n\0";
+            // format(msg, tmp);
+            sprintf(msg, "250 MKD success.\r\n");
             p = sendMsg(connfd, msg, strlen(msg));
         } else
         {
-            msg = "500 MKD Failed!\r\n\0";
+            msg = "550 MKD Failed!\r\n\0";
             p = sendMsg(connfd, msg, strlen(msg));
         }
     } else
 
     if (strcmp(cmd.cmdName, "CWD") == 0) {
         if (cmd.num_params == 1 && chdir(cmd.params[0]) == 0){
-            msg = "200 CWD success!\r\n\0";
+            msg = "250 CWD success!\r\n\0";
             p = sendMsg(connfd, msg, strlen(msg));
         } else
         {
-            msg = "500 CWD Failed!\r\n\0";
+            strcpy(tmp, msg);
+            sprintf(msg, "550 %s: No such file or directory.\r\n", tmp);
+            // msg = "550 CWD Failed!\r\n\0";
             p = sendMsg(connfd, msg, strlen(msg));
         }
     } else
@@ -365,53 +405,57 @@ int CmdHandle(struct Command cmd, int connfd, char* msg, int maxlen) {
     if (strcmp(cmd.cmdName, "PWD") == 0) {
         if (getcwd(msg, maxlen) == NULL){
             printf("Error getcwd");
-            msg = "500 PWD Failed!\r\n\0";
+            msg = "550 PWD failed\r\n\0";
             p = sendMsg(connfd, msg, strlen(msg));
         } else
         {
-            insertScode(msg);
+            // insertScode(msg);
+            format(msg, tmp);
+            sprintf(msg, "257 \"%s\" PWD OK.\r\n", tmp);
             p = sendMsg(connfd, msg, strlen(msg));
         }
     } else
 
     if (strcmp(cmd.cmdName, "LIST") == 0) {
-        if (cmd.num_params == 0){
-            if (getcwd(curpath, 8192) == NULL){
-                printf("Error getcwd in LIST");
-                msg = "500 Error getcwd!\r\n\0";
-                p = sendMsg(connfd, msg, strlen(msg));
-            } else
-            {
-                p = cmd_LISTD(connfd, curpath, msg, maxlen);
-            }
-        } else
-        if (cmd.num_params == 1){
-            if (!exist(cmd.params[0])){
-                printf("Path Not found!\n");
-                msg = "500 Path Not found!\r\n\0";
-                p = sendMsg(connfd, msg, strlen(msg));
-            } else
-            if (is_directory(cmd.params[0])){
-                p = cmd_LISTD(connfd, cmd.params[0], msg, maxlen);
-            } else
-            {
-                p = cmd_LISTF(connfd, cmd.params[0], msg, maxlen);
-            }
-        } else
-        {
-            printf("LIST parmas Error!\n");
-            msg = "500 LIST parmas Error!\r\n\0";
-            p = sendMsg(connfd, msg, strlen(msg));
-        }
+        msg = "425 Please choose mode(PORT/PASV)\r\n\0";
+        p = sendMsg(connfd, msg, strlen(msg));
+        // if (cmd.num_params == 0){
+        //     if (getcwd(curpath, 8192) == NULL){
+        //         printf("Error getcwd in LIST");
+        //         msg = "500 Error getcwd!\r\n\0";
+        //         p = sendMsg(connfd, msg, strlen(msg));
+        //     } else
+        //     {
+        //         p = cmd_LISTD(connfd, curpath, msg, maxlen);
+        //     }
+        // } else
+        // if (cmd.num_params == 1){
+        //     if (!exist(cmd.params[0])){
+        //         printf("Path Not found!\n");
+        //         msg = "500 Path Not found!\r\n\0";
+        //         p = sendMsg(connfd, msg, strlen(msg));
+        //     } else
+        //     if (is_directory(cmd.params[0])){
+        //         p = cmd_LISTD(connfd, cmd.params[0], msg, maxlen);
+        //     } else
+        //     {
+        //         p = cmd_LISTF(connfd, cmd.params[0], msg, maxlen);
+        //     }
+        // } else
+        // {
+        //     printf("LIST parmas Error!\n");
+        //     msg = "500 LIST parmas Error!\r\n\0";
+        //     p = sendMsg(connfd, msg, strlen(msg));
+        // }
     } else
 
     if (strcmp(cmd.cmdName, "RMD") == 0) {
         if (cmd.num_params == 1 && rmdir(cmd.params[0]) == 0){
-            msg = "200 RMD success!\r\n\0";
+            msg = "250 RMD success!\r\n\0";
             p = sendMsg(connfd, msg, strlen(msg));
         } else
         {
-            msg = "500 RMD Failed!\r\n\0";
+            msg = "550 RMD Failed!\r\n\0";
             p = sendMsg(connfd, msg, strlen(msg));
         }
     } else
@@ -419,24 +463,28 @@ int CmdHandle(struct Command cmd, int connfd, char* msg, int maxlen) {
     if (strcmp(cmd.cmdName, "RNFR") == 0) {
         // struct stat path_stat;
         if (cmd.num_params == 1 && exist(cmd.params[0])){
-            msg = "200 Please send target name!\r\n\0";
+            msg = "350 Please send target name!\r\n\0";
             p = sendMsg(connfd, msg, strlen(msg));
             strcpy(oldpath, cmd.params[0]);
         } else
         {
-            msg = "500 RNFR Failed!\r\n\0";
+            msg = "550 RNFR Failed!\r\n\0";
             p = sendMsg(connfd, msg, strlen(msg));
         }
     } else
 
     if (strcmp(cmd.cmdName, "RNTO") == 0) {
+        if (oldpath[0] == '\0'){
+            msg = "503 Please source filename!\r\n\0";
+            p = sendMsg(connfd, msg, strlen(msg));
+        } else
         if (cmd.num_params == 1 && rename(oldpath, cmd.params[0]) == 0){
-            msg = "200 Rename successfully!\r\n\0";
+            msg = "250 Rename successfully!\r\n\0";
             p = sendMsg(connfd, msg, strlen(msg));
             oldpath[0] = '\0';
         } else
         {
-            msg = "500 RNTO Failed!\r\n\0";
+            msg = "550 RNTO Failed!\r\n\0";
             p = sendMsg(connfd, msg, strlen(msg));
         }
     } else

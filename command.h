@@ -1,6 +1,11 @@
 #ifndef tinyFTP_command_H
 #define tinyFTP_command_H
 #include <string.h>
+enum curmode{
+    NONE = 0,
+    PASV,
+    PORT
+};
 struct Command{
     char* cmdName;
     char** params;

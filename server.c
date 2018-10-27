@@ -41,7 +41,7 @@ int login(int connfd, char* sentence, int maxlen) {
             return p;
         }
         if (strcmp(cmd.cmdName, "USER") == 0) {
-            if (strcmp(cmd.params[0], "anonymous") == 0){
+            if (cmd.num_params == 1 && strcmp(cmd.params[0], "anonymous") == 0){
                 strcpy(sentence, passwStr);
                 // sentence = "331 Guest login ok, send your complete e-mail address as password.\n\0";
                 p = sendMsg(connfd, sentence, strlen(sentence));
@@ -52,7 +52,7 @@ int login(int connfd, char* sentence, int maxlen) {
                 break;
             } else
             {
-                strcpy(sentence, "332 Not supported login method!\r\n\0");
+                strcpy(sentence, "530 Not supported login method!\r\n\0");
                 printf("Not supported login method!\n");
                 p = sendMsg(connfd, sentence, strlen(sentence));
                 if (p < 0) {
@@ -64,7 +64,7 @@ int login(int connfd, char* sentence, int maxlen) {
             }
         } else
         {
-            strcpy(sentence, "332 You can do nothing without login!\r\n\0");
+            strcpy(sentence, "530 You can do nothing without login!\r\n\0");
             printf("You can do nothing without login!\n");
             p = sendMsg(connfd, sentence, strlen(sentence));
             if (p < 0) {
@@ -103,7 +103,7 @@ int login(int connfd, char* sentence, int maxlen) {
             } else
             if (cmd.num_params == 0) {
                 printf("No password get!\n");
-                strcpy(sentence, "332 No password get!\r\n\0");
+                strcpy(sentence, "503 No password get!\r\n\0");
                 p = sendMsg(connfd, sentence, strlen(sentence));
                 if (p < 0) {    // error code
                     printf("Error sendMsg: %d\n", -p);
@@ -113,7 +113,7 @@ int login(int connfd, char* sentence, int maxlen) {
             } else
             {
                 printf("Password shouldn't include space!\n");
-                strcpy(sentence, "332 Password shouldn't include space!\r\n\0");
+                strcpy(sentence, "503 Password shouldn't include space!\r\n\0");
                 p = sendMsg(connfd, sentence, strlen(sentence));
                 if (p < 0) {    // error code
                     printf("Error sendMsg: %d\n", -p);
@@ -149,16 +149,19 @@ int comunicate(int connfd, char* sentence, int maxlen) {
     p = waitMsg(connfd, sentence, maxlen);
     if (p < 0) {    // error code!
         printf("waitMsg Error! %d\n", -p);
+        releCmd(&cmd);
         return p;
     }
     p = Msg2Command(sentence, &cmd);
     if (p < 0) {    // error code
         printf("Msg2Command Error: %d\n", -p);
+        releCmd(&cmd);
         return p;
     }
     p = CmdHandle(cmd, connfd, sentence, maxlen);
     if (p < 0) {    // error code
         printf("CmdHandle Error: %d\n", -p);
+        releCmd(&cmd);
         return p;
     }
 
@@ -171,12 +174,11 @@ int serve_client(int connfd){
 	int p, len, i;
 	char sentence[MAXBUFLEN];
     
-
-    // p = login(connfd, sentence, MAXBUFLEN);
-    // if (p < 0) {    // error code
-    //     printf("login Error: %d\n", -p);
-    //     return -p;
-    // }
+    p = login(connfd, sentence, MAXBUFLEN);
+    if (p < 0) {    // error code
+        printf("login Error: %d\n", -p);
+        return -p;
+    }
 
     while (1) {
         p = comunicate(connfd, sentence, MAXBUFLEN);

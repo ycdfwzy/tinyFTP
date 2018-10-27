@@ -10,12 +10,15 @@
 #include <stdio.h>
 #include "socketutils.h"
 #include "constants.h"
+#include "command.h"
+#include "fileclient.h"
 
 #define isDigit(c) ((c)>='0' && (c)<='9')
 #define isSpace(c) ((c)==' ')
 // const int MAXBUFLEN = 8192;
 char rec[8192];
 char snd[8192];
+int curMode = NONE;
 
 // check if string strat with Digit-Digit-Digit-Space
 int startWithDDDS(const char* st){
@@ -106,24 +109,51 @@ int login(int sockfd, char* sentence, int maxlen){
 }
 
 int communicate(int sockfd) {
+    struct Command cmd;
+    initCmd(&cmd);
     int len = getInput(snd);
+
+    Msg2Command(snd, &cmd);
+
     int p = sendMsg(sockfd, snd, len);
     if (p < 0) {    // error code!
         printf("sendMsg Error! %d\n", -p);
+        releCmd(&cmd);
         return p;
+    }
+
+    if (curMode == PORT) {
+
+    } else
+    if (curMode == PASV) {
+
+    } else
+    if (strcmp(cmd->cmdName, "PORT") == 0 &&
+        cmd->num_params == 1){
+        p = port(cmd->params[0]);
+        if (p == 0){
+            curMode = PORT;
+        }
+    }
+    if (strcmp(cmd->cmdName, "PASV") == 0 &&
+        cmd->num_params == 1){
+
     }
 
     do{
         p = waitMsg(sockfd, rec, MAXBUFLEN);
         if (p < 0) {    // error code!
             printf("waitMsg Error! %d\n", -p);
+            releCmd(&cmd);
             return p;
         }
     } while (!startWithDDDS(rec));
 
     if (isByeMsg(rec)){
+        releCmd(&cmd);
         return -ERRORQUIT;
     }
+    releCmd(&cmd);
     return 0;
 }
 
