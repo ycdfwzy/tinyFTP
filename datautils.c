@@ -262,11 +262,11 @@ int cmd_LISTD(int connfd, char* pathname, char* msg, int maxlen) {
         }
     }
     closedir(dp);
-    sprintf(msg, "Complete!\n");
-    p = sendMsg(connfd, msg, strlen(msg));
-    if (p < 0){
-        return -ERRORDISCONN;
-    }
+    // sprintf(msg, "Complete!\n");
+    // p = sendMsg(connfd, msg, strlen(msg));
+    // if (p < 0){
+    //     return -ERRORDISCONN;
+    // }
     return 0;
 }
 
@@ -334,6 +334,49 @@ int recv_list(int fd) {
             printf("waitMsg Error! %d\n", -p);
             return p;
         }
-    } while (!endWith(msg, "Complete!"));
+    } while (endWith(msg, "Complete!"));//while (strlen(msg) == 0);
     return 0;
+}
+
+int send_file(char* filename, int fd){
+	int p;
+	char tmp[MAXBUFLEN];
+	FILE* f = fopen(filename, "rb");
+	size_t len;
+	while ((len = fread(tmp, 1, MAXBUFLEN, f)) > 0){
+		printf("%lu\n", len);
+		p = sendMsg(fd, tmp, len);
+		if (p < 0){
+			fclose(f);
+			return -ERRORDISCONN;
+		}
+	}
+	sprintf(tmp, "Complete!\n");
+	p = sendMsg(fd, tmp, strlen(tmp));
+	if (p < 0){
+		fclose(f);
+		return -ERRORDISCONN;
+	}
+	fclose(f);
+	return 0;
+}
+
+int recv_file(char* filename, int fd){
+	int p;
+	char tmp[MAXBUFLEN+10];
+	FILE* f = fopen(filename, "wb");
+	while (1){
+		p = waitMsg(fd, tmp, MAXBUFLEN);
+		if (p < 0){
+			fclose(f);
+			return -ERRORDISCONN;
+		}
+		if (endWith(tmp, "Complete!")){
+			fwrite(tmp, 1, strlen(tmp)-9, f);
+			break;
+		}
+		fwrite(tmp, 1, strlen(tmp), f);
+	}
+	fclose(f);
+	return 0;
 }

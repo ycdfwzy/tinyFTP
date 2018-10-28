@@ -11,7 +11,7 @@ int waitConn(struct ServerUtils* su);
 int conSer_Server(char* IpPort, struct connClient* cc);
 int conSer_Client(char* IpPort, struct ClientUtils* cu);
 int send_file(char* filename, int fd);
-int recv_file(int fd);
+int recv_file(char* filename, int fd);
 int send_list(char* param, int fd);
 int recv_list(int fd);
 

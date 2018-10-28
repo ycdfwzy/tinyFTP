@@ -93,6 +93,19 @@ void format(char* s, char* t) {
     t[j] = '\0';
 }
 
+void getfilename(char* path){
+    int len = strlen(path);
+    char tmp[MAXBUFLEN];
+    if (len == 0) return;
+    for (int j = len-1; j >= 0; j--){
+        if (path[j] == '/'){
+            strcpy(tmp, path+j+1);
+            strcpy(path, tmp);
+            return;
+        }
+    }
+}
+
 int Msg2Command(char* msg, struct Command* cmd) {
     char* tmp = msg;
     int cnt = 0, i, len;
@@ -214,13 +227,99 @@ int CmdHandle(struct Command cmd, struct connClient* cc, char* msg, int maxlen) 
     }
 
     if (strcmp(cmd.cmdName, "RETR") == 0) {
-        msg = "425 Please choose mode(PORT/PASV)\r\n\0";
-        p = sendMsg(connfd, msg, strlen(msg));
+        if (cc->dataSer == NULL && cc->dataCli == NULL){
+            msg = "425 Please choose mode(PORT/PASV)\r\n\0";
+            p = sendMsg(connfd, msg, strlen(msg));
+        } else
+        {
+            int fd;
+            if (cc->dataSer != NULL){
+                fd = getfisrtConn(cc->dataSer);
+            } else
+            {
+                fd = cc->dataCli->sockfd;
+            }
+
+            if (cmd.num_params == 1){
+                strcpy(tmp, cmd.params[0]);
+                toabsPath(tmp, cc->curdir);
+                printf("abspath %s:\n", tmp);
+
+                if (!exist(tmp)){
+                    printf("File Not found!\n");
+                    msg = "451 File Not found!\r\n\0";
+                } else
+                {
+                    p = send_file(tmp, fd);
+                    if (p == 0){
+                        msg = "226 retr file successfully.\r\n\0";
+                        p = sendMsg(connfd, msg, strlen(msg));
+                    } else
+                    if (p == -ERRORREADFROMDISC){
+                        printf("Error when read from disk!\n");
+                        msg = "551 Error when read from disk!\r\n\0";
+                        p = sendMsg(connfd, msg, strlen(msg));
+                    } else
+                    if (p == -ERRORDISCONN){
+                        printf("File Not found!\n");
+                        msg = "426 Disconnect!\r\n\0";
+                        p = sendMsg(connfd, msg, strlen(msg));
+                    }
+                }
+            } else
+            {
+                printf("RETR parmas Error!\n");
+                msg = "451 RETR parmas Error!\r\n\0";
+                p = sendMsg(connfd, msg, strlen(msg));
+            }
+            dropOtherConn_CONN(cc);
+        }
     } else
 
     if (strcmp(cmd.cmdName, "STOR") == 0) {
-        msg = "425 Please choose mode(PORT/PASV)\r\n\0";
-        p = sendMsg(connfd, msg, strlen(msg));
+        if (cc->dataSer == NULL && cc->dataCli == NULL){
+            msg = "425 Please choose mode(PORT/PASV)\r\n\0";
+            p = sendMsg(connfd, msg, strlen(msg));
+        } else
+        {
+            int fd;
+            if (cc->dataSer != NULL){
+                fd = getfisrtConn(cc->dataSer);
+            } else
+            {
+                fd = cc->dataCli->sockfd;
+            }
+            
+            if (cmd.num_params == 1){
+                strcpy(tmp, cmd.params[0]);
+                // getfilename(tmp);
+                toabsPath(tmp, cc->curdir);
+                printf("abspath %s:\n", tmp);
+
+                p = recv_file(tmp, fd);
+                if (p == 0){
+                    msg = "226 stor file successfully.\r\n\0";
+                    p = sendMsg(connfd, msg, strlen(msg));
+                } else
+                if (p == -ERRORREADFROMDISC){
+                    printf("Error when read from disk!\n");
+                    msg = "552 Error when read from disk!\r\n\0";
+                    p = sendMsg(connfd, msg, strlen(msg));
+                } else
+                if (p == -ERRORDISCONN){
+                    printf("File Not found!\n");
+                    msg = "426 Disconnect!\r\n\0";
+                    p = sendMsg(connfd, msg, strlen(msg));
+                }
+
+            } else
+            {
+                printf("STOR parmas Error!\n");
+                msg = "452 STOR parmas Error!\r\n\0";
+                p = sendMsg(connfd, msg, strlen(msg));
+            }
+            dropOtherConn_CONN(cc);
+        }
     } else
 
     if (strcmp(cmd.cmdName, "QUIT") == 0 ||
@@ -372,6 +471,7 @@ int CmdHandle(struct Command cmd, struct connClient* cc, char* msg, int maxlen) 
                 } else
                 {
                     p = send_list(tmp, fd);
+                    // dropOtherConn_CONN(cc);
                     if (p == 0){
                         msg = "226 send list successfully.\r\n\0";
                         p = sendMsg(connfd, msg, strlen(msg));

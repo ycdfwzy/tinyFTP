@@ -109,6 +109,7 @@ int waitMsg(int connfd, char* msg, int MAXLEN) {
 	p = 0;
 	while (1) {
 		int n = read(connfd, msg + p, MAXLEN - p);
+		printf("n=%d\n", n);
 		if (n < 0) {
 			printf("Error read(): %s(%d)\n", strerror(errno), errno);
 			return -ERRORREAD;
@@ -116,19 +117,27 @@ int waitMsg(int connfd, char* msg, int MAXLEN) {
 			break;
 		} else {
 			p += n;
-			if (msg[p - 1] == '\n') {
+			if (p >= MAXLEN ||  msg[p - 1] == '\n') {
 				break;
 			}
 		}
 	}
+
 	if (p == 0){
 		msg[0] = '\0';
 		len = p;
 	} else
 	{
-    	msg[p - 1] = '\0';
-		len = p - 1;
+		if (msg[p - 1] == '\n'){
+    		msg[p - 1] = '\0';
+			len = p - 1;
+		} else
+		{
+			msg[p] = '\0';
+			len = p;
+		}
 	}
+
 	printf("receive: %s\n", msg);
 	return len;
 }

@@ -2,7 +2,7 @@
 #define tinyFTP_constants_H
 
 #define MAXCONN 64
-extern const int MAXBUFLEN;
+#define MAXBUFLEN 8192
 extern const char* readyStr;
 extern const char* passwStr;
 extern const char* greetStr;

@@ -121,11 +121,11 @@ int communicate(struct ClientUtils* cu) {
     waitConn(cu->dataSer);
     p = waitMsg(cu->sockfd, rec, MAXBUFLEN);
 
-
-    sprintf(snd, "LIST /home/ycdfwzy\r\n");
+    sprintf(snd, "STOR test.txt\r\n");
     printf("to send: %s", snd);
     p = sendMsg(cu->sockfd, snd, strlen(snd));
-    recv_list(cu->dataSer->conn[0].connfd);
+    send_file("/home/ycdfwzy/test.txt", cu->dataSer->conn[0].connfd);
+    // dropOtherConn_Client(cu);
     p = waitMsg(cu->sockfd, rec, MAXBUFLEN);
 
     dropOtherConn_Client(cu);
@@ -133,17 +133,37 @@ int communicate(struct ClientUtils* cu) {
     sprintf(snd, "PASV\r\n");
     p = sendMsg(cu->sockfd, snd, strlen(snd));
     p = waitMsg(cu->sockfd, rec, MAXBUFLEN);
-    // struct Command cmd;
-    // initCmd(&cmd);
 
-    // Msg2Command(rec, &cmd);
     p = conSer_Client(rec+5, cu);
 
-    sprintf(snd, "LIST /home/ycdfwzy/oh-my-tuna.py\r\n");
+    sprintf(snd, "RETR test.txt\r\n");
     p = sendMsg(cu->sockfd, snd, strlen(snd));
-    printf("before recv_list, sockfd=%d\n", cu->dataCli->sockfd);
-    recv_list(cu->dataCli->sockfd);
+    recv_file("test.txt", cu->dataCli->sockfd);
     p = waitMsg(cu->sockfd, rec, MAXBUFLEN);
+
+
+    // sprintf(snd, "LIST /home/ycdfwzy\r\n");
+    // printf("to send: %s", snd);
+    // p = sendMsg(cu->sockfd, snd, strlen(snd));
+    // recv_list(cu->dataSer->conn[0].connfd);
+    // p = waitMsg(cu->sockfd, rec, MAXBUFLEN);
+
+    // dropOtherConn_Client(cu);
+
+    // sprintf(snd, "PASV\r\n");
+    // p = sendMsg(cu->sockfd, snd, strlen(snd));
+    // p = waitMsg(cu->sockfd, rec, MAXBUFLEN);
+    // // struct Command cmd;
+    // // initCmd(&cmd);
+
+    // // Msg2Command(rec, &cmd);
+    // p = conSer_Client(rec+5, cu);
+
+    // sprintf(snd, "LIST /home/ycdfwzy/oh-my-tuna.py\r\n");
+    // p = sendMsg(cu->sockfd, snd, strlen(snd));
+    // printf("before recv_list, sockfd=%d\n", cu->dataCli->sockfd);
+    // recv_list(cu->dataCli->sockfd);
+    // p = waitMsg(cu->sockfd, rec, MAXBUFLEN);
     dropOtherConn_Client(cu);
 
     sprintf(snd, "QUIT\r\n");

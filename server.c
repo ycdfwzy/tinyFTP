@@ -175,11 +175,11 @@ int serve_client(struct connClient* cc){
 	char sentence[MAXBUFLEN];
     int connfd = cc->connfd;
     
-    // p = login(connfd, sentence, MAXBUFLEN);
-    // if (p < 0) {    // error code
-    //     printf("login Error: %d\n", -p);
-    //     return -p;
-    // }
+    p = login(connfd, sentence, MAXBUFLEN);
+    if (p < 0) {    // error code
+        printf("login Error: %d\n", -p);
+        return -p;
+    }
 
     while (1) {
         p = comunicate(cc, sentence, MAXBUFLEN);
@@ -192,6 +192,22 @@ int serve_client(struct connClient* cc){
 }
 
 int main(int argc, char **argv) {
+    int port = 6789;
+    if (argc == 5){
+        for (int i = 1; i < 5; i += 2){
+            if (strcmp(argv[i], "-port") == 0){
+                sscanf(argv[i+1], "%d", &port);
+            } else
+            if (strcmp(argv[i], "-root") == 0){
+                chdir(argv[i+1]);
+            }
+        }
+    }
+    printf("port = %d\n", port);
+    char tmp[100];
+    getcwd(tmp, 100);
+    printf("curdir = %s\n", tmp);
+
 	initServerUtils(&server);
 	if ((server.listenfd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) == -1) {
 		printf("Error socket(): %s(%d)\n", strerror(errno), errno);
@@ -201,7 +217,7 @@ int main(int argc, char **argv) {
 
 	memset(&(server.addr), 0, sizeof(server.addr));
 	server.addr.sin_family = AF_INET;
-	server.addr.sin_port = htons(6789);
+	server.addr.sin_port = htons(port);
 	server.addr.sin_addr.s_addr = htonl(INADDR_ANY);
 
 
