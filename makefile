@@ -1,23 +1,20 @@
-server: server.c command.o socketutils.o constants.o dataserver.o errorcode.h
-	gcc server.c command.o socketutils.o constants.o dataserver.o -o server
+server: server.c command.o socketutils.o constants.o datautils.o errorcode.h
+	gcc server.c command.o socketutils.o constants.o datautils.o -o server -W -Wall
 
-client: client.c socketutils.o constants.o command.o dataclient.o errorcode.h
-	gcc client.c socketutils.o constants.o command.o dataclient.o -o client
+client: client.c socketutils.o constants.o command.o datautils.o errorcode.h
+	gcc client.c socketutils.o constants.o command.o datautils.o -o client -W -Wall
 
-command.o: command.c dataserver.h command.h socketutils.h constants.h
-	gcc -c command.c -o command.o
+command.o: command.c datautils.h command.h socketutils.h constants.h
+	gcc -c command.c -o command.o -W -Wall
 
 socketutils.o: socketutils.c socketutils.h errorcode.h
-	gcc -c socketutils.c -o socketutils.o
+	gcc -c socketutils.c -o socketutils.o -W -Wall
 
 constants.o: constants.c constants.h
-	gcc -c constants.c -o constants.o
+	gcc -c constants.c -o constants.o -W -Wall
 
-dataserver.o: dataserver.c dataserver.h errorcode.h
-	gcc -c dataserver.c -o dataserver.o
-
-dataclient.o: dataclient.c dataclient.h errorcode.h
-	gcc -c dataclient.c -o dataclient.o
+datautils.o: datautils.c datautils.h errorcode.h socketutils.h
+	gcc -c datautils.c -o datautils.o -W -Wall
 
 clean:
 	rm *.o server client

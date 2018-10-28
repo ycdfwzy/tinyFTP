@@ -11,14 +11,14 @@
 #include "socketutils.h"
 #include "constants.h"
 #include "command.h"
-#include "fileclient.h"
+#include "datautils.h"
 
 #define isDigit(c) ((c)>='0' && (c)<='9')
 #define isSpace(c) ((c)==' ')
 // const int MAXBUFLEN = 8192;
 char rec[8192];
 char snd[8192];
-int curMode = NONE;
+struct ClientUtils client;
 
 // check if string strat with Digit-Digit-Digit-Space
 int startWithDDDS(const char* st){
@@ -34,7 +34,7 @@ int startWith(const char* s, const char* t) {
     size_t ls = strlen(s);
     size_t lt = strlen(t);
     if (ls < lt) return 0;
-    for (int i = 0; i < lt; ++i)
+    for (unsigned i = 0; i < lt; ++i)
         if (s[i] != t[i])
             return 0;
     return 1;
@@ -108,74 +108,106 @@ int login(int sockfd, char* sentence, int maxlen){
     return 0;
 }
 
-int communicate(int sockfd) {
-    struct Command cmd;
-    initCmd(&cmd);
-    int len = getInput(snd);
+int communicate(struct ClientUtils* cu) {
+    char tmp[8192];
+    int p;
 
-    Msg2Command(snd, &cmd);
+    dropOtherConn_Client(cu);
 
-    int p = sendMsg(sockfd, snd, len);
-    if (p < 0) {    // error code!
-        printf("sendMsg Error! %d\n", -p);
-        releCmd(&cmd);
-        return p;
-    }
+    p = crtSer_Client(tmp, cu);
+    sprintf(snd, "PORT %s\r\n", tmp);
+    printf("to send: %s", snd);
+    p = sendMsg(cu->sockfd, snd, strlen(snd));
+    waitConn(cu->dataSer);
+    p = waitMsg(cu->sockfd, rec, MAXBUFLEN);
 
-    if (curMode == PORT) {
 
-    } else
-    if (curMode == PASV) {
+    sprintf(snd, "LIST /home/ycdfwzy\r\n");
+    printf("to send: %s", snd);
+    p = sendMsg(cu->sockfd, snd, strlen(snd));
+    recv_list(cu->dataSer->conn[0].connfd);
+    p = waitMsg(cu->sockfd, rec, MAXBUFLEN);
 
-    } else
-    if (strcmp(cmd->cmdName, "PORT") == 0 &&
-        cmd->num_params == 1){
-        p = port(cmd->params[0]);
-        if (p == 0){
-            curMode = PORT;
-        }
-    }
-    if (strcmp(cmd->cmdName, "PASV") == 0 &&
-        cmd->num_params == 1){
+    dropOtherConn_Client(cu);
 
-    }
+    sprintf(snd, "PASV\r\n");
+    p = sendMsg(cu->sockfd, snd, strlen(snd));
+    p = waitMsg(cu->sockfd, rec, MAXBUFLEN);
+    // struct Command cmd;
+    // initCmd(&cmd);
 
-    do{
-        p = waitMsg(sockfd, rec, MAXBUFLEN);
-        if (p < 0) {    // error code!
-            printf("waitMsg Error! %d\n", -p);
-            releCmd(&cmd);
-            return p;
-        }
-    } while (!startWithDDDS(rec));
+    // Msg2Command(rec, &cmd);
+    p = conSer_Client(rec+5, cu);
 
-    if (isByeMsg(rec)){
-        releCmd(&cmd);
-        return -ERRORQUIT;
-    }
-    releCmd(&cmd);
+    sprintf(snd, "LIST /home/ycdfwzy/oh-my-tuna.py\r\n");
+    p = sendMsg(cu->sockfd, snd, strlen(snd));
+    printf("before recv_list, sockfd=%d\n", cu->dataCli->sockfd);
+    recv_list(cu->dataCli->sockfd);
+    p = waitMsg(cu->sockfd, rec, MAXBUFLEN);
+    dropOtherConn_Client(cu);
+
+    sprintf(snd, "QUIT\r\n");
+    p = sendMsg(cu->sockfd, snd, strlen(snd));
+    p = waitMsg(cu->sockfd, rec, MAXBUFLEN);
+    // int sockfd = cu->sockfd;
+    // char tmp[8192];
+
+    // struct Command cmd;
+    // initCmd(&cmd);
+    // int len = getInput(snd);
+
+    // Msg2Command(snd, &cmd);
+
+    // if (strcmp(cmd->cmdName, "PORT") == 0 &&
+    //     cmd->num_params == 1){
+
+    //     p = crtSer(tmp, cu);
+    // }
+
+    // int p = sendMsg(sockfd, snd, len);
+    // if (p < 0) {    // error code!
+    //     printf("sendMsg Error! %d\n", -p);
+    //     releCmd(&cmd);
+    //     return p;
+    // }
+
+    // do{
+    //     p = waitMsg(sockfd, rec, MAXBUFLEN);
+    //     if (p < 0) {    // error code!
+    //         printf("waitMsg Error! %d\n", -p);
+    //         releCmd(&cmd);
+    //         return p;
+    //     }
+    // } while (!startWithDDDS(rec));
+
+    // if (isByeMsg(rec)){
+    //     releCmd(&cmd);
+    //     return -ERRORQUIT;
+    // }
+    // releCmd(&cmd);
     return 0;
 }
 
 int main(int argc, char **argv) {
-	int sockfd;
-	struct sockaddr_in addr;
+	// int sockfd;
+	// struct sockaddr_in addr;
+    initClientUtils(&client);
 	int p;
 
-    if ((sockfd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) == -1) {
+    if ((client.sockfd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) == -1) {
         printf("Error socket(): %s(%d)\n", strerror(errno), errno);
         return 1;
     }
 
-    memset(&addr, 0, sizeof(addr));
-    addr.sin_family = AF_INET;
-    addr.sin_port = htons(6789);
-    if (inet_pton(AF_INET, "127.0.0.1", &addr.sin_addr) <= 0) {
+    memset(&client.addr, 0, sizeof(client.addr));
+    client.addr.sin_family = AF_INET;
+    client.addr.sin_port = htons(6789);
+    if (inet_pton(AF_INET, "127.0.0.1", &(client.addr.sin_addr)) <= 0) {
         printf("Error inet_pton(): %s(%d)\n", strerror(errno), errno);
         return 1;
     }
 
-    if (connect(sockfd, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
+    if (connect(client.sockfd, (struct sockaddr*)&(client.addr), sizeof(client.addr)) < 0) {
         printf("Error connect(): %s(%d)\n", strerror(errno), errno);
         return 1;
     }
@@ -187,17 +219,19 @@ int main(int argc, char **argv) {
     //     return -p;
     // }
     while (1) {
-        p = communicate(sockfd);
+        p = communicate(&client);
         if (p == -ERRORQUIT){
             printf("Disconnect Successfully!\n");
             break;
         } else
         if (p < 0) {
-            close(sockfd);
+            close(client.sockfd);
             printf("login Error! %d\n", -p);
             return -p;
         }
+        break;
     }
-    close(sockfd);
+    close(client.sockfd);
+    releClientUtils(&client);
 	return 0;
 }

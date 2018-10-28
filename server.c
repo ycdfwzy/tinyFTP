@@ -14,7 +14,7 @@
 #include "socketutils.h"
 #include "constants.h"
 
-// const int MAXBUFLEN = 8192;
+struct ServerUtils server;
 
 int login(int connfd, char* sentence, int maxlen) {
     struct Command cmd;
@@ -141,8 +141,9 @@ int login(int connfd, char* sentence, int maxlen) {
     return 0;
 }
 
-int comunicate(int connfd, char* sentence, int maxlen) {
+int comunicate(struct connClient* cc, char* sentence, int maxlen) {
     int p;
+    int connfd = cc->connfd;
     struct Command cmd;
     initCmd(&cmd);
 
@@ -158,7 +159,7 @@ int comunicate(int connfd, char* sentence, int maxlen) {
         releCmd(&cmd);
         return p;
     }
-    p = CmdHandle(cmd, connfd, sentence, maxlen);
+    p = CmdHandle(cmd, cc, sentence, maxlen);
     if (p < 0) {    // error code
         printf("CmdHandle Error: %d\n", -p);
         releCmd(&cmd);
@@ -167,21 +168,21 @@ int comunicate(int connfd, char* sentence, int maxlen) {
 
     releCmd(&cmd);
     return 0;
-    
 }
 
-int serve_client(int connfd){
-	int p, len, i;
+int serve_client(struct connClient* cc){
+	int p;
 	char sentence[MAXBUFLEN];
+    int connfd = cc->connfd;
     
-    p = login(connfd, sentence, MAXBUFLEN);
-    if (p < 0) {    // error code
-        printf("login Error: %d\n", -p);
-        return -p;
-    }
+    // p = login(connfd, sentence, MAXBUFLEN);
+    // if (p < 0) {    // error code
+    //     printf("login Error: %d\n", -p);
+    //     return -p;
+    // }
 
     while (1) {
-        p = comunicate(connfd, sentence, MAXBUFLEN);
+        p = comunicate(cc, sentence, MAXBUFLEN);
         if (p < 0) {    // error code
             printf("comunicate Error: %d\n", -p);
             return -p;
@@ -191,56 +192,68 @@ int serve_client(int connfd){
 }
 
 int main(int argc, char **argv) {
-	int listenfd, connfd;
-	struct sockaddr_in addr;
-	// int p;
-	// int len;
-	if ((listenfd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) == -1) {
+	initServerUtils(&server);
+	if ((server.listenfd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) == -1) {
 		printf("Error socket(): %s(%d)\n", strerror(errno), errno);
 		// return 1;
 		return ERRORSOCKET;
 	}
 
+	memset(&(server.addr), 0, sizeof(server.addr));
+	server.addr.sin_family = AF_INET;
+	server.addr.sin_port = htons(6789);
+	server.addr.sin_addr.s_addr = htonl(INADDR_ANY);
 
-	memset(&addr, 0, sizeof(addr));
-	addr.sin_family = AF_INET;
-	addr.sin_port = htons(6789);
-	addr.sin_addr.s_addr = htonl(INADDR_ANY);
 
-
-	if (bind(listenfd, (struct sockaddr*)&addr, sizeof(addr)) == -1) {
+	if (bind(server.listenfd, (struct sockaddr*)&(server.addr), sizeof(server.addr)) == -1) {
 		printf("Error bind(): %s(%d)\n", strerror(errno), errno);
 		// return 1;
 		return ERRORBIND;
 	}
 
 
-	if (listen(listenfd, 10) == -1) {
+	if (listen(server.listenfd, MAXCONN) == -1) {
 		printf("Error listen(): %s(%d)\n", strerror(errno), errno);
 		// return 1;
 		return ERRORLISTEN;
 	}
 
 	while (1) {
-        if ((connfd = accept(listenfd, NULL, NULL)) == -1) {
+        int index = -1;
+        for (int i = 0; i < MAXCONN; ++i){
+            if (server.conn[i].connfd == -1){
+                index = i;
+                break;
+            }
+        }
+        if (index == -1)    // no idle conn
+            continue;
+        if ((server.conn[index].connfd = accept(server.listenfd, NULL, NULL)) == -1) {
             printf("Error accept(): %s(%d)\n", strerror(errno), errno);
             continue;
         }
 
-		int serve_ret = serve_client(connfd);
+        getcwd(server.conn[index].curdir, 512);
+
+		int serve_ret = serve_client(&server.conn[index]);
 		printf("serve_client finished\n");
         if (serve_ret == ERRORQUIT){
             printf("Client disconnect Successfully!\n");
-            close(connfd);
+            close(server.conn[index].connfd);
+            releconnClient(&(server.conn[index]));
             continue;
         } else
 		if (serve_ret != 0 && serve_ret != ERRORREAD){
-            close(connfd);
+            close(server.conn[index].connfd);
+            releconnClient(&(server.conn[index]));
 			return serve_ret;
 		}
+        close(server.conn[index].connfd);
+        releconnClient(&(server.conn[index]));
         break;
 	}
-    close(connfd);
-	close(listenfd);
+    releServerUtils(&server);
+    // close(connfd);
+	close(server.listenfd);
 	return 0;
 }
