@@ -59,3 +59,10 @@ modules.order
 Module.symvers
 Mkfile.old
 dkms.conf
+
+# others
+*.txt
+*.docx
+*.png
+*.avi
+*.mp4
