@@ -266,7 +266,7 @@ int main(int argc, char **argv) {
 		}
         close(server.conn[index].connfd);
         releconnClient(&(server.conn[index]));
-        break;
+        // break;
 	}
     releServerUtils(&server);
     // close(connfd);

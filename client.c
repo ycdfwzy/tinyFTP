@@ -109,37 +109,38 @@ int login(int sockfd, char* sentence, int maxlen){
 }
 
 int communicate(struct ClientUtils* cu) {
-    char tmp[8192];
-    int p;
+    // char tmp[8192];
+    // int p;
 
-    dropOtherConn_Client(cu);
-
-    p = crtSer_Client(tmp, cu);
-    sprintf(snd, "PORT %s\r\n", tmp);
-    printf("to send: %s", snd);
-    p = sendMsg(cu->sockfd, snd, strlen(snd));
-    waitConn(cu->dataSer);
-    p = waitMsg(cu->sockfd, rec, MAXBUFLEN);
-
-    sprintf(snd, "STOR test.txt\r\n");
-    printf("to send: %s", snd);
-    p = sendMsg(cu->sockfd, snd, strlen(snd));
-    send_file("/home/ycdfwzy/test.txt", cu->dataSer->conn[0].connfd);
     // dropOtherConn_Client(cu);
-    p = waitMsg(cu->sockfd, rec, MAXBUFLEN);
 
-    dropOtherConn_Client(cu);
+    // p = crtSer_Client(tmp, cu);
+    // sprintf(snd, "PORT %s\r\n", tmp);
+    // printf("to send: %s", snd);
+    // p = sendMsg(cu->sockfd, snd, strlen(snd));
+    // waitConn(cu->dataSer);
+    // p = waitMsg(cu->sockfd, rec, MAXBUFLEN);
 
-    sprintf(snd, "PASV\r\n");
-    p = sendMsg(cu->sockfd, snd, strlen(snd));
-    p = waitMsg(cu->sockfd, rec, MAXBUFLEN);
+    // sprintf(snd, "STOR test.txt\r\n");
+    // printf("to send: %s", snd);
+    // p = sendMsg(cu->sockfd, snd, strlen(snd));
+    // send_file("/home/ycdfwzy/test.txt", cu->dataSer->conn[0].connfd);
+    // // dropOtherConn_Client(cu);
+    // p = waitMsg(cu->sockfd, rec, MAXBUFLEN);
 
-    p = conSer_Client(rec+5, cu);
+    // dropOtherConn_Client(cu);
 
-    sprintf(snd, "RETR test.txt\r\n");
-    p = sendMsg(cu->sockfd, snd, strlen(snd));
-    recv_file("test.txt", cu->dataCli->sockfd);
-    p = waitMsg(cu->sockfd, rec, MAXBUFLEN);
+    // sprintf(snd, "PASV\r\n");
+    // p = sendMsg(cu->sockfd, snd, strlen(snd));
+    // p = waitMsg(cu->sockfd, rec, MAXBUFLEN);
+
+    // p = conSer_Client(rec+5, cu);
+
+    // sprintf(snd, "RETR test.txt\r\n");
+    // p = sendMsg(cu->sockfd, snd, strlen(snd));
+    // recv_file("test.txt", cu->dataCli->sockfd);
+    // p = waitMsg(cu->sockfd, rec, MAXBUFLEN);
+    // dropOtherConn_Client(cu);
 
 
     // sprintf(snd, "LIST /home/ycdfwzy\r\n");
@@ -164,53 +165,48 @@ int communicate(struct ClientUtils* cu) {
     // printf("before recv_list, sockfd=%d\n", cu->dataCli->sockfd);
     // recv_list(cu->dataCli->sockfd);
     // p = waitMsg(cu->sockfd, rec, MAXBUFLEN);
-    dropOtherConn_Client(cu);
+    // dropOtherConn_Client(cu);
 
-    sprintf(snd, "QUIT\r\n");
-    p = sendMsg(cu->sockfd, snd, strlen(snd));
-    p = waitMsg(cu->sockfd, rec, MAXBUFLEN);
-    // int sockfd = cu->sockfd;
-    // char tmp[8192];
+    // sprintf(snd, "QUIT\r\n");
+    // p = sendMsg(cu->sockfd, snd, strlen(snd));
+    // p = waitMsg(cu->sockfd, rec, MAXBUFLEN);
+    int sockfd = cu->sockfd;
+    char tmp[8192];
 
-    // struct Command cmd;
-    // initCmd(&cmd);
-    // int len = getInput(snd);
+    struct Command cmd;
+    initCmd(&cmd);
+    int len = getInput(snd);
 
-    // Msg2Command(snd, &cmd);
+    Msg2Command(snd, &cmd);
 
-    // if (strcmp(cmd->cmdName, "PORT") == 0 &&
-    //     cmd->num_params == 1){
+    int p = sendMsg(sockfd, snd, len);
+    if (p < 0) {    // error code!
+        printf("sendMsg Error! %d\n", -p);
+        releCmd(&cmd);
+        return p;
+    }
 
-    //     p = crtSer(tmp, cu);
-    // }
+    do{
+        p = waitMsg(sockfd, rec, MAXBUFLEN);
+        if (p < 0) {    // error code!
+            printf("waitMsg Error! %d\n", -p);
+            releCmd(&cmd);
+            return p;
+        }
+    } while (!startWithDDDS(rec));
 
-    // int p = sendMsg(sockfd, snd, len);
-    // if (p < 0) {    // error code!
-    //     printf("sendMsg Error! %d\n", -p);
-    //     releCmd(&cmd);
-    //     return p;
-    // }
-
-    // do{
-    //     p = waitMsg(sockfd, rec, MAXBUFLEN);
-    //     if (p < 0) {    // error code!
-    //         printf("waitMsg Error! %d\n", -p);
-    //         releCmd(&cmd);
-    //         return p;
-    //     }
-    // } while (!startWithDDDS(rec));
-
-    // if (isByeMsg(rec)){
-    //     releCmd(&cmd);
-    //     return -ERRORQUIT;
-    // }
-    // releCmd(&cmd);
+    if (isByeMsg(rec)){
+        releCmd(&cmd);
+        return -ERRORQUIT;
+    }
+    releCmd(&cmd);
     return 0;
 }
 
 int main(int argc, char **argv) {
 	// int sockfd;
 	// struct sockaddr_in addr;
+    char sentence[8192];
     initClientUtils(&client);
 	int p;
 
@@ -232,12 +228,12 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    // p = login(sockfd, sentence, 8192);
-    // if (p < 0) {
-    //     close(sockfd);
-    //     printf("login Error! %d\n", -p);
-    //     return -p;
-    // }
+    p = login(client.sockfd, sentence, 8192);
+    if (p < 0) {
+        close(client.sockfd);
+        printf("login Error! %d\n", -p);
+        return -p;
+    }
     while (1) {
         p = communicate(&client);
         if (p == -ERRORQUIT){
@@ -249,7 +245,7 @@ int main(int argc, char **argv) {
             printf("login Error! %d\n", -p);
             return -p;
         }
-        break;
+        // break;
     }
     close(client.sockfd);
     releClientUtils(&client);

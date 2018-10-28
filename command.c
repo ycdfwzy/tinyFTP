@@ -251,6 +251,8 @@ int CmdHandle(struct Command cmd, struct connClient* cc, char* msg, int maxlen) 
                 } else
                 {
                     p = send_file(tmp, fd);
+
+                    dropOtherConn_CONN(cc);
                     if (p == 0){
                         msg = "226 retr file successfully.\r\n\0";
                         p = sendMsg(connfd, msg, strlen(msg));
@@ -289,7 +291,7 @@ int CmdHandle(struct Command cmd, struct connClient* cc, char* msg, int maxlen) 
             {
                 fd = cc->dataCli->sockfd;
             }
-            
+
             if (cmd.num_params == 1){
                 strcpy(tmp, cmd.params[0]);
                 // getfilename(tmp);
@@ -297,6 +299,8 @@ int CmdHandle(struct Command cmd, struct connClient* cc, char* msg, int maxlen) 
                 printf("abspath %s:\n", tmp);
 
                 p = recv_file(tmp, fd);
+
+                dropOtherConn_CONN(cc);
                 if (p == 0){
                     msg = "226 stor file successfully.\r\n\0";
                     p = sendMsg(connfd, msg, strlen(msg));
@@ -403,20 +407,38 @@ int CmdHandle(struct Command cmd, struct connClient* cc, char* msg, int maxlen) 
     } else
 
     if (strcmp(cmd.cmdName, "MKD") == 0) {
-        if (cmd.num_params == 1 && mkdir(cmd.params[0], S_IRWXU | S_IRWXG | S_IRWXO) == 0){
-            sprintf(msg, "250 MKD success.\r\n");
-            p = sendMsg(connfd, msg, strlen(msg));
+        if (cmd.num_params == 1) {
+            strcpy(tmp, cmd.params[0]);
+            toabsPath(tmp, cc->curdir);
+            if (mkdir(tmp, S_IRWXU | S_IRWXG | S_IRWXO) == 0){
+                sprintf(msg, "250 MKD success.\r\n");
+                p = sendMsg(connfd, msg, strlen(msg));
+            } else
+            {
+                msg = "550 MKD Failed!\r\n\0";
+                p = sendMsg(connfd, msg, strlen(msg));
+            }
         } else
         {
-            msg = "550 MKD Failed!\r\n\0";
+            msg = "550 error please check pramas of MKD!\r\n\0";
             p = sendMsg(connfd, msg, strlen(msg));
         }
     } else
 
     if (strcmp(cmd.cmdName, "CWD") == 0) {
-        if (cmd.num_params == 1 && chdir(cmd.params[0]) == 0){
-            msg = "250 CWD success!\r\n\0";
-            p = sendMsg(connfd, msg, strlen(msg));
+        if (cmd.num_params == 1){
+            strcpy(tmp, cmd.params[0]);
+            toabsPath(tmp, cc->curdir);
+            if (is_directory(tmp)){
+                strcpy(cc->curdir, tmp);
+                // if (chdir(cmd.params[0]) == 0){
+                msg = "250 CWD success!\r\n\0";
+                p = sendMsg(connfd, msg, strlen(msg));
+            } else
+            {
+                sprintf(msg, "550 %s: No such file or directory.\r\n", tmp);
+                p = sendMsg(connfd, msg, strlen(msg));
+            }
         } else
         {
             strcpy(tmp, msg);
@@ -427,11 +449,12 @@ int CmdHandle(struct Command cmd, struct connClient* cc, char* msg, int maxlen) 
     } else
 
     if (strcmp(cmd.cmdName, "PWD") == 0) {
-        if (getcwd(msg, maxlen) == NULL){
-            printf("Error getcwd");
-            msg = "550 PWD failed\r\n\0";
-            p = sendMsg(connfd, msg, strlen(msg));
-        } else
+        strcpy(msg, cc->curdir);
+        // if (getcwd(msg, maxlen) == NULL){
+        //     printf("Error getcwd");
+        //     msg = "550 PWD failed\r\n\0";
+        //     p = sendMsg(connfd, msg, strlen(msg));
+        // } else
         {
             format(msg, tmp);
             sprintf(msg, "257 \"%s\" PWD OK.\r\n", tmp);
@@ -499,9 +522,17 @@ int CmdHandle(struct Command cmd, struct connClient* cc, char* msg, int maxlen) 
     } else
 
     if (strcmp(cmd.cmdName, "RMD") == 0) {
-        if (cmd.num_params == 1 && rmdir(cmd.params[0]) == 0){
-            msg = "250 RMD success!\r\n\0";
-            p = sendMsg(connfd, msg, strlen(msg));
+        if (cmd.num_params == 1){
+            strcpy(tmp, cmd.params[0]);
+            toabsPath(tmp, cc->curdir);
+            if (rmdir(tmp) == 0){
+                msg = "250 RMD success!\r\n\0";
+                p = sendMsg(connfd, msg, strlen(msg));
+            } else
+            {
+                msg = "550 RMD Failed!\r\n\0";
+                p = sendMsg(connfd, msg, strlen(msg));
+            }
         } else
         {
             msg = "550 RMD Failed!\r\n\0";
@@ -511,10 +542,18 @@ int CmdHandle(struct Command cmd, struct connClient* cc, char* msg, int maxlen) 
 
     if (strcmp(cmd.cmdName, "RNFR") == 0) {
         // struct stat path_stat;
-        if (cmd.num_params == 1 && exist(cmd.params[0])){
-            msg = "350 Please send target name!\r\n\0";
-            p = sendMsg(connfd, msg, strlen(msg));
-            strcpy(cc->oldpath, cmd.params[0]);
+        if (cmd.num_params == 1){
+            strcpy(tmp, cmd.params[0]);
+            toabsPath(tmp, cc->curdir);
+            if (exist(tmp)){
+                msg = "350 Please send target name!\r\n\0";
+                p = sendMsg(connfd, msg, strlen(msg));
+                strcpy(cc->oldpath, cmd.params[0]);
+            } else
+            {
+                msg = "550 RNFR Failed!\r\n\0";
+                p = sendMsg(connfd, msg, strlen(msg));
+            }
         } else
         {
             msg = "550 RNFR Failed!\r\n\0";
@@ -527,10 +566,14 @@ int CmdHandle(struct Command cmd, struct connClient* cc, char* msg, int maxlen) 
             msg = "503 Please source filename!\r\n\0";
             p = sendMsg(connfd, msg, strlen(msg));
         } else
-        if (cmd.num_params == 1 && rename(cc->oldpath, cmd.params[0]) == 0){
-            msg = "250 Rename successfully!\r\n\0";
-            p = sendMsg(connfd, msg, strlen(msg));
-            cc->oldpath[0] = '\0';
+        if (cmd.num_params == 1){
+            strcpy(tmp, cmd.params[0]);
+            toabsPath(tmp, cc->curdir);
+            if (rename(cc->oldpath, tmp) == 0){
+                msg = "250 Rename successfully!\r\n\0";
+                p = sendMsg(connfd, msg, strlen(msg));
+                cc->oldpath[0] = '\0';
+            }
         } else
         {
             msg = "550 RNTO Failed!\r\n\0";
