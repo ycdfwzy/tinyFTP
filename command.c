@@ -213,6 +213,13 @@ int CmdHandle(struct Command cmd, struct connClient* cc, char* msg, int maxlen) 
                 toabsPath(tmp, cc->curdir);
                 printf("abspath %s\n", tmp);
 
+                char rootpath[512];
+                getcwd(rootpath, 512);
+                if (!startWith(tmp, rootpath)){ // permission denied!
+                    sprintf(msg, "550 %s: You have no Permission!\r\n", tmp);
+                    p = sendMsg(connfd, msg, strlen(msg));
+                } else
+
                 if (!exist(tmp) || is_directory(tmp)){
                     printf("File Not found!\n");
                     msg = "451 File Not found!\r\n\0";
@@ -253,7 +260,7 @@ int CmdHandle(struct Command cmd, struct connClient* cc, char* msg, int maxlen) 
 
     if (strcmp(cmd.cmdName, "STOR") == 0) {
         if (cc->dataSer == NULL && cc->dataCli == NULL){
-            msg = "425 Please choose mode(PORT/PASV)\r\n\0";
+            msg = "450 Please choose mode(PORT/PASV)\r\n\0";
             p = sendMsg(connfd, msg, strlen(msg));
         } else
         {
@@ -271,31 +278,39 @@ int CmdHandle(struct Command cmd, struct connClient* cc, char* msg, int maxlen) 
                 toabsPath(tmp, cc->curdir);
                 printf("abspath %s:\n", tmp);
 
-                sprintf(msg, "150 Start recv\r\n");
-                p = sendMsg(connfd, msg, strlen(msg));
-
-                p = recv_file(tmp, fd);
-                dropOtherConn_CONN(cc);
-
-                if (p == 0){
-                    msg = "226 stor file successfully.\r\n\0";
+                char rootpath[512];
+                getcwd(rootpath, 512);
+                if (!startWith(tmp, rootpath)){ // permission denied!
+                    sprintf(msg, "550 %s: You have no Permission!\r\n", tmp);
                     p = sendMsg(connfd, msg, strlen(msg));
                 } else
-                if (p == -ERRORREADFROMDISC){
-                    printf("Error when write to disk!\n");
-                    msg = "552 Error when write to disk!\r\n\0";
+                {
+                    sprintf(msg, "150 Start recv\r\n");
                     p = sendMsg(connfd, msg, strlen(msg));
-                } else
-                if (p == -ERRORDISCONN){
-                    printf("data connection Disconnect!\n");
-                    msg = "426 Disconnect!\r\n\0";
-                    p = sendMsg(connfd, msg, strlen(msg));
+
+                    p = recv_file(tmp, fd);
+                    dropOtherConn_CONN(cc);
+
+                    if (p == 0){
+                        msg = "226 stor file successfully.\r\n\0";
+                        p = sendMsg(connfd, msg, strlen(msg));
+                    } else
+                    if (p == -ERRORREADFROMDISC){
+                        printf("Error when write to disk!\n");
+                        msg = "552 Error when write to disk!\r\n\0";
+                        p = sendMsg(connfd, msg, strlen(msg));
+                    } else
+                    if (p == -ERRORDISCONN){
+                        printf("data connection Disconnect!\n");
+                        msg = "426 Disconnect!\r\n\0";
+                        p = sendMsg(connfd, msg, strlen(msg));
+                    }
                 }
 
             } else
             {
                 printf("STOR parmas Error!\n");
-                msg = "452 STOR parmas Error!\r\n\0";
+                msg = "450 STOR parmas Error!\r\n\0";
                 p = sendMsg(connfd, msg, strlen(msg));
             }
             dropOtherConn_CONN(cc);
@@ -387,6 +402,14 @@ int CmdHandle(struct Command cmd, struct connClient* cc, char* msg, int maxlen) 
         if (cmd.num_params == 1) {
             strcpy(tmp, cmd.params[0]);
             toabsPath(tmp, cc->curdir);
+
+            char rootpath[512];
+            getcwd(rootpath, 512);
+            if (!startWith(tmp, rootpath)){ // permission denied!
+                sprintf(msg, "550 %s: You have no Permission!\r\n", tmp);
+                p = sendMsg(connfd, msg, strlen(msg));
+            } else
+
             if (mkdir(tmp, S_IRWXU | S_IRWXG | S_IROTH) == 0){
                 sprintf(msg, "250 MKD success.\r\n");
                 p = sendMsg(connfd, msg, strlen(msg));
@@ -406,11 +429,20 @@ int CmdHandle(struct Command cmd, struct connClient* cc, char* msg, int maxlen) 
         if (cmd.num_params == 1){
             strcpy(tmp, cmd.params[0]);
             toabsPath(tmp, cc->curdir);
+
             if (is_directory(tmp)){
-                strcpy(cc->curdir, tmp);
-                // if (chdir(cmd.params[0]) == 0){
-                msg = "250 CWD success!\r\n\0";
-                p = sendMsg(connfd, msg, strlen(msg));
+                char rootpath[512];
+                getcwd(rootpath, 512);
+                if (!startWith(tmp, rootpath)){ // permission denied!
+                    sprintf(msg, "550 %s: You have no Permission!!\r\n", tmp);
+                    p = sendMsg(connfd, msg, strlen(msg));
+                } else
+                {
+                    strcpy(cc->curdir, tmp);
+                    // if (chdir(cmd.params[0]) == 0){
+                    msg = "250 CWD success!\r\n\0";
+                    p = sendMsg(connfd, msg, strlen(msg));
+                }
             } else
             {
                 sprintf(msg, "550 %s: No such file or directory.\r\n", tmp);
@@ -468,6 +500,13 @@ int CmdHandle(struct Command cmd, struct connClient* cc, char* msg, int maxlen) 
                 toabsPath(tmp, cc->curdir);
                 printf("abspath %s:\n", tmp);
 
+                char rootpath[512];
+                getcwd(rootpath, 512);
+                if (!startWith(tmp, rootpath)){ // permission denied!
+                    sprintf(msg, "550 %s: You have no Permission!\r\n", tmp);
+                    p = sendMsg(connfd, msg, strlen(msg));
+                } else
+
                 if (!exist(tmp)){
                     printf("Path Not found!\n");
                     msg = "451 Path Not found!\r\n\0";
@@ -510,6 +549,13 @@ int CmdHandle(struct Command cmd, struct connClient* cc, char* msg, int maxlen) 
         if (cmd.num_params == 1){
             strcpy(tmp, cmd.params[0]);
             toabsPath(tmp, cc->curdir);
+
+            char rootpath[512];
+            getcwd(rootpath, 512);
+            if (!startWith(tmp, rootpath)){ // permission denied!
+                sprintf(msg, "550 %s: You have no Permission!\r\n", tmp);
+                p = sendMsg(connfd, msg, strlen(msg));
+            } else
             if (rmdir(tmp) == 0){
                 msg = "250 RMD success!\r\n\0";
                 p = sendMsg(connfd, msg, strlen(msg));
@@ -530,6 +576,13 @@ int CmdHandle(struct Command cmd, struct connClient* cc, char* msg, int maxlen) 
         if (cmd.num_params == 1){
             strcpy(tmp, cmd.params[0]);
             toabsPath(tmp, cc->curdir);
+
+            char rootpath[512];
+            getcwd(rootpath, 512);
+            if (!startWith(tmp, rootpath)){ // permission denied!
+                sprintf(msg, "550 %s: You have no Permission!\r\n", tmp);
+                p = sendMsg(connfd, msg, strlen(msg));
+            } else
             if (exist(tmp)){
                 msg = "350 Please send target name!\r\n\0";
                 p = sendMsg(connfd, msg, strlen(msg));
@@ -554,6 +607,13 @@ int CmdHandle(struct Command cmd, struct connClient* cc, char* msg, int maxlen) 
         if (cmd.num_params == 1){
             strcpy(tmp, cmd.params[0]);
             toabsPath(tmp, cc->curdir);
+
+            char rootpath[512];
+            getcwd(rootpath, 512);
+            if (!startWith(tmp, rootpath)){ // permission denied!
+                sprintf(msg, "550 %s: You have no Permission!\r\n", tmp);
+                p = sendMsg(connfd, msg, strlen(msg));
+            } else
             if (rename(cc->oldpath, tmp) == 0){
                 msg = "250 Rename successfully!\r\n\0";
                 p = sendMsg(connfd, msg, strlen(msg));

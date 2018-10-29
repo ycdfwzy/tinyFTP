@@ -513,7 +513,8 @@ int communicate(struct ClientUtils* cu) {
 
     struct Command cmd;
     initCmd(&cmd);
-    int len = getInput(snd);
+    getInput(snd);
+    // int len = getInput(snd);
     // printf("%s %d\n", snd, len);
 
     int p = Msg2Command(snd, &cmd);
