@@ -15,6 +15,7 @@ void closeSer(struct ServerUtils* su){
 
 void closeCli(struct ClientUtils* cu){
 	releClientUtils(cu);
+	printf("Close cu_id=%d!\n", cu->sockfd);
 	close(cu->sockfd);
 }
 
@@ -74,12 +75,14 @@ void releClientUtils(struct ClientUtils* cu){
 void dropOtherConn_Client(struct ClientUtils* cu){
     if (cu->dataSer != NULL){
         closeSer(cu->dataSer);
-        releServerUtils(cu->dataSer);
+        // releServerUtils(cu->dataSer);
+        free(cu->dataSer);
         cu->dataSer = NULL;
     }
     if (cu->dataCli != NULL){
         closeCli(cu->dataCli);
-        releClientUtils(cu->dataCli);
+        // releClientUtils(cu->dataCli);
+        free(cu->dataCli);
         cu->dataCli = NULL;
     }
 }
@@ -87,12 +90,14 @@ void dropOtherConn_Client(struct ClientUtils* cu){
 void dropOtherConn_CONN(struct connClient* cc){
     if (cc->dataSer != NULL){
         closeSer(cc->dataSer);
-        releServerUtils(cc->dataSer);
+        free(cc->dataSer);
+        // releServerUtils(cc->dataSer);
         cc->dataSer = NULL;
     }
     if (cc->dataCli != NULL){
         closeCli(cc->dataCli);
-        releClientUtils(cc->dataCli);
+        free(cc->dataCli);
+        // releClientUtils(cc->dataCli);
         cc->dataCli = NULL;
     }
 }
@@ -117,7 +122,7 @@ int waitMsg(int connfd, char* msg, int MAXLEN) {
 			break;
 		} else {
 			p += n;
-			if (p >= MAXLEN ||  msg[p - 1] == '\n') {
+			if (p >= MAXLEN ||  msg[p - 1] == '\n' || msg[p - 1] == '\4') {
 				break;
 			}
 		}
@@ -140,6 +145,28 @@ int waitMsg(int connfd, char* msg, int MAXLEN) {
 
 	printf("receive: %s\n", msg);
 	return len;
+}
+
+int waitData(int connfd, char* msg, int MAXLEN) {
+	int p;
+	p = 0;
+	while (1) {
+		int n = read(connfd, msg + p, MAXLEN - p);
+		if (n < 0) {
+			printf("Error read(): %s(%d)\n", strerror(errno), errno);
+			return -ERRORREAD;
+		} else if (n == 0) {
+			break;
+		} else {
+			p += n;
+			if (p >= MAXLEN){
+				break;
+			}
+		}
+	}
+	msg[p] = '\0';
+	// printf("receive data: %s\n", msg);
+	return p;
 }
 
 int sendMsg(int connfd, char* msg, int len){

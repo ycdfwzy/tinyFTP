@@ -13,9 +13,6 @@
 #include <sys/types.h>
 #include <time.h>
 
-// char oldpath[8192] = "\0";
-char curpath[8192];
-
 void initCmd(struct Command* cmd) {
     cmd->cmdName = NULL;
     cmd->params = NULL;
@@ -64,22 +61,6 @@ int getlen(char* msg){
     return len;
 }
 
-void insertScode(char* msg){
-    size_t len = strlen(msg);
-    for (int i = len; i > 0; --i){
-        msg[i+3] = msg[i-1];
-    }
-    msg[0] = '2', msg[1] = '0';
-    msg[2] = '0', msg[3] = ' ';
-    len = strlen(msg);
-    while (len > 0 && (msg[len-1] == '\n' || msg[len-1] == '\r')){
-        msg[--len] = '\0';
-    }
-    msg[len++] = '\r';
-    msg[len++] = '\n';
-    msg[len] = '\0';
-}
-
 void format(char* s, char* t) {
     int len = strlen(s);
     int i, j;
@@ -91,19 +72,6 @@ void format(char* s, char* t) {
             t[j++] = s[i];
         }
     t[j] = '\0';
-}
-
-void getfilename(char* path){
-    int len = strlen(path);
-    char tmp[MAXBUFLEN];
-    if (len == 0) return;
-    for (int j = len-1; j >= 0; j--){
-        if (path[j] == '/'){
-            strcpy(tmp, path+j+1);
-            strcpy(path, tmp);
-            return;
-        }
-    }
 }
 
 int Msg2Command(char* msg, struct Command* cmd) {
@@ -216,7 +184,7 @@ int CmdHandle(struct Command cmd, struct connClient* cc, char* msg, int maxlen) 
 
     if (cc->oldpath[0] != '\0'){ // RNFR to handle
         if (strcmp(cmd.cmdName, "RNTO") != 0){
-            msg = "503 Please send target name!\r\n\0";
+            msg = "503 Please send target name using RNTO!\r\n\0";
             p = sendMsg(connfd, msg, strlen(msg));
             if (p < 0) {    // error code!
                 printf("sendMsg Error! %d\n", -p);
@@ -243,16 +211,21 @@ int CmdHandle(struct Command cmd, struct connClient* cc, char* msg, int maxlen) 
             if (cmd.num_params == 1){
                 strcpy(tmp, cmd.params[0]);
                 toabsPath(tmp, cc->curdir);
-                printf("abspath %s:\n", tmp);
+                printf("abspath %s\n", tmp);
 
-                if (!exist(tmp)){
+                if (!exist(tmp) || is_directory(tmp)){
                     printf("File Not found!\n");
                     msg = "451 File Not found!\r\n\0";
                 } else
                 {
-                    p = send_file(tmp, fd);
+                    int sz = getFilesize(tmp);
+                    sprintf(msg, "150 Start transfer(%d bytes)\r\n", sz);
+                    p = sendMsg(connfd, msg, strlen(msg));
 
+                    p = send_file(tmp, fd);
+                    sleep(1);
                     dropOtherConn_CONN(cc);
+                    
                     if (p == 0){
                         msg = "226 retr file successfully.\r\n\0";
                         p = sendMsg(connfd, msg, strlen(msg));
@@ -263,7 +236,7 @@ int CmdHandle(struct Command cmd, struct connClient* cc, char* msg, int maxlen) 
                         p = sendMsg(connfd, msg, strlen(msg));
                     } else
                     if (p == -ERRORDISCONN){
-                        printf("File Not found!\n");
+                        printf("data connection Disconnect!\n");
                         msg = "426 Disconnect!\r\n\0";
                         p = sendMsg(connfd, msg, strlen(msg));
                     }
@@ -294,24 +267,27 @@ int CmdHandle(struct Command cmd, struct connClient* cc, char* msg, int maxlen) 
 
             if (cmd.num_params == 1){
                 strcpy(tmp, cmd.params[0]);
-                // getfilename(tmp);
+                getfilename(tmp);
                 toabsPath(tmp, cc->curdir);
                 printf("abspath %s:\n", tmp);
 
-                p = recv_file(tmp, fd);
+                sprintf(msg, "150 Start recv\r\n");
+                p = sendMsg(connfd, msg, strlen(msg));
 
+                p = recv_file(tmp, fd);
                 dropOtherConn_CONN(cc);
+
                 if (p == 0){
                     msg = "226 stor file successfully.\r\n\0";
                     p = sendMsg(connfd, msg, strlen(msg));
                 } else
                 if (p == -ERRORREADFROMDISC){
-                    printf("Error when read from disk!\n");
-                    msg = "552 Error when read from disk!\r\n\0";
+                    printf("Error when write to disk!\n");
+                    msg = "552 Error when write to disk!\r\n\0";
                     p = sendMsg(connfd, msg, strlen(msg));
                 } else
                 if (p == -ERRORDISCONN){
-                    printf("File Not found!\n");
+                    printf("data connection Disconnect!\n");
                     msg = "426 Disconnect!\r\n\0";
                     p = sendMsg(connfd, msg, strlen(msg));
                 }
@@ -328,13 +304,14 @@ int CmdHandle(struct Command cmd, struct connClient* cc, char* msg, int maxlen) 
 
     if (strcmp(cmd.cmdName, "QUIT") == 0 ||
         strcmp(cmd.cmdName, "ABOR") == 0) {
-        printf("In QUIT\n");
+        // printf("In QUIT\n");
         strcpy(msg, byeStr);
         p = sendMsg(connfd, msg, strlen(msg));
         if (p < 0) { // error code!
             printf("sendMsg Error! %d\n", -p);
             return p;
         }
+        dropOtherConn_CONN(cc);
         return -ERRORQUIT;
     } else
 
@@ -346,12 +323,12 @@ int CmdHandle(struct Command cmd, struct connClient* cc, char* msg, int maxlen) 
     if (strcmp(cmd.cmdName, "TYPE") == 0) {
         // printf("IN TYPE\n");
         if (cmd.num_params == 1 &&
-            (strcmp(cmd.params[0], "I") == 0 || strcmp(cmd.params[0], "i"))){
+            (strcmp(cmd.params[0], "I") == 0 || strcmp(cmd.params[0], "i") == 0)){
             strcpy(msg, "200 Type set to I.\r\n\0");
             p = sendMsg(connfd, msg, strlen(msg));
         } else
         {
-            strcpy(msg, "500 No this type!\r\n\0");
+            strcpy(msg, "504 No this type!\r\n\0");
             p = sendMsg(connfd, msg, strlen(msg));
         }
     } else
@@ -368,7 +345,7 @@ int CmdHandle(struct Command cmd, struct connClient* cc, char* msg, int maxlen) 
                     break;
                 case ERRORIPPORT:
                     printf("Error IP/PORT in PORT!\n");
-                    msg = "425 error ip/port in PORT\r\n\0";
+                    msg = "425 error ip/port of PORT\r\n\0";
                     p = sendMsg(connfd, msg, strlen(msg));
                     break;
                 default:
@@ -410,7 +387,7 @@ int CmdHandle(struct Command cmd, struct connClient* cc, char* msg, int maxlen) 
         if (cmd.num_params == 1) {
             strcpy(tmp, cmd.params[0]);
             toabsPath(tmp, cc->curdir);
-            if (mkdir(tmp, S_IRWXU | S_IRWXG | S_IRWXO) == 0){
+            if (mkdir(tmp, S_IRWXU | S_IRWXG | S_IROTH) == 0){
                 sprintf(msg, "250 MKD success.\r\n");
                 p = sendMsg(connfd, msg, strlen(msg));
             } else
@@ -477,9 +454,12 @@ int CmdHandle(struct Command cmd, struct connClient* cc, char* msg, int maxlen) 
             }
 
             if (cmd.num_params == 0){
+                sprintf(msg, "150 Start transfer\r\n");
+                p = sendMsg(connfd, msg, strlen(msg));
+
                 p = send_list(cc->curdir, fd);
                 if (p == 0){
-                    msg = "226 send successfully.\r\n\0";
+                    msg = "226 send list successfully.\r\n\0";
                     p = sendMsg(connfd, msg, strlen(msg));
                 }
             } else
@@ -491,10 +471,15 @@ int CmdHandle(struct Command cmd, struct connClient* cc, char* msg, int maxlen) 
                 if (!exist(tmp)){
                     printf("Path Not found!\n");
                     msg = "451 Path Not found!\r\n\0";
+                    p = sendMsg(connfd, msg, strlen(msg));
                 } else
                 {
+                    sprintf(msg, "150 Start transfer\r\n");
+                    p = sendMsg(connfd, msg, strlen(msg));
+
                     p = send_list(tmp, fd);
-                    // dropOtherConn_CONN(cc);
+                    sleep(1);
+                    dropOtherConn_CONN(cc);
                     if (p == 0){
                         msg = "226 send list successfully.\r\n\0";
                         p = sendMsg(connfd, msg, strlen(msg));

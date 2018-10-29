@@ -1,5 +1,5 @@
 server: server.c command.o socketutils.o constants.o datautils.o errorcode.h
-	gcc server.c command.o socketutils.o constants.o datautils.o -o server -W -Wall
+	gcc server.c command.o socketutils.o constants.o datautils.o -o server -W -Wall -lpthread
 
 client: client.c socketutils.o constants.o command.o datautils.o errorcode.h
 	gcc client.c socketutils.o constants.o command.o datautils.o -o client -W -Wall

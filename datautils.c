@@ -17,6 +17,9 @@
 #include <sys/types.h>
 #include <time.h>
 
+#define isDigit(c) ((c)>='0' && (c)<='9')
+#define isSpace(c) ((c)==' ')
+
 int is_regular_file(const char *path) {
     struct stat path_stat;
     if (stat(path, &path_stat) != 0){
@@ -36,6 +39,62 @@ int is_directory(const char* path) {
 int exist(const char* path) {
     struct stat path_stat;
     return (stat(path, &path_stat) == 0);
+}
+
+void getfilename(char* path){
+    int len = strlen(path);
+    char tmp[MAXBUFLEN];
+    if (len == 0) return;
+    for (int j = len-1; j >= 0; j--){
+        if (path[j] == '/'){
+            strcpy(tmp, path+j+1);
+            strcpy(path, tmp);
+            return;
+        }
+    }
+}
+
+int getFilesize(const char* path){
+	struct stat path_stat;
+    if (stat(path, &path_stat) != 0){
+        return 0;
+    }
+    return path_stat.st_size;
+}
+
+// check if string strat with Digit-Digit-Digit-Space
+int startWithDDDS(const char* st){
+    size_t len = strlen(st);
+    if (len < 4){
+        return 0;
+    }
+    return (isDigit(st[0]) && isDigit(st[1]) &&
+            isDigit(st[2]) && isSpace(st[3]));
+}
+
+int indexofDDDS(const char* st){
+	size_t len = strlen(st);
+	size_t i = 0;
+	while (i+3 < len){
+		if (startWithDDDS(st+i)){
+			return i;
+		}
+		while (i+3 < len && st[i] != '\n')
+			++i;
+		++i;
+	}
+	return -1;
+}
+
+int startWith(const char* s, const char* t) {
+    size_t ls = strlen(s);
+    size_t lt = strlen(t);
+    // printf("ls=%d lt=%d\n", ls, lt);
+    if (ls < lt) return 0;
+    for (unsigned i = 0; i < lt; ++i)
+        if (s[i] != t[i])
+            return 0;
+    return 1;
 }
 
 int endWith(const char* s, const char* t){
@@ -74,10 +133,23 @@ int extract(char* IpPort, char* ipaddr, int* port){
 	// }
 	while ((*IpPort) && ((*IpPort)<'0' || (*IpPort)>'9'))
 		IpPort++;
-	sscanf(IpPort, "%d,%d,%d,%d,%d,%d",
-		&h[0], &h[1], &h[2], &h[3], &h[4], &h[5]);
-	sprintf(ipaddr, "%d.%d.%d.%d", h[0], h[1], h[2], h[3]);
-	*port = h[4]*256+h[5];
+	if (*IpPort) {
+		char tmp[40];
+		sscanf(IpPort, "%d,%d,%d,%d,%d,%d",
+			&h[0], &h[1], &h[2], &h[3], &h[4], &h[5]);
+		printf("IpPort=%s\n", IpPort);
+		sprintf(tmp, "%d,%d,%d,%d,%d,%d",
+			h[0], h[1], h[2], h[3], h[4], h[5]);
+		printf("tmp=%s\n", tmp);
+		if (!startWith(IpPort, tmp)){
+			return -ERROREXT;
+		}
+		sprintf(ipaddr, "%d.%d.%d.%d", h[0], h[1], h[2], h[3]);
+		*port = h[4]*256+h[5];
+	} else
+	{
+		return -ERROREXT;
+	}
 	return 0;
 }
 
@@ -97,7 +169,7 @@ int conSer(char* IpPort, struct ClientUtils* datacli){
         printf("Error socket(): %s(%d)\n", strerror(errno), errno);
         return -ERRORSOCKET;
     }
-    printf("sockfd: %d\n", datacli->sockfd);
+    printf("conSer sockfd: %d\n", datacli->sockfd);
 
 	memset(&(datacli->addr), 0, sizeof(datacli->addr));
     datacli->addr.sin_family = AF_INET;
@@ -134,13 +206,24 @@ int conSer_Client(char* IpPort, struct ClientUtils* cu){
 	return conSer(IpPort, datacli);
 }
 
-int crtSer(char* IpPort, struct ServerUtils* dataser){
-	// int p;
+// mode = 0, client input ip&port, mode = 1, server random port
+int crtSer(char* IpPort, struct ServerUtils* dataser, int mode){
+	int p;
 	int port = rand()&65535;
 	char ipaddr[20];
 
-	while (port < 20000)
-		port = rand()&65535;
+	if (mode == 0){
+		p = extract(IpPort, ipaddr, &port);
+		if (p < 0) {
+			printf("Error extract!\n");
+			return p;
+		}
+		printf("%s:%d\n", ipaddr, port);
+	} else
+	{
+		while (port < 20000)
+			port = rand()&65535;
+	}
 
 	if ((dataser->listenfd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) == -1) {
 		printf("Error socket(): %s(%d)\n", strerror(errno), errno);
@@ -152,25 +235,33 @@ int crtSer(char* IpPort, struct ServerUtils* dataser){
 	dataser->addr.sin_port = htons(port);
 	dataser->addr.sin_addr.s_addr = htonl(INADDR_ANY);
 
-	while (bind(dataser->listenfd, (struct sockaddr*)&(dataser->addr), sizeof(dataser->addr)) == -1) {
-		printf("Error bind(): %s(%d)\n", strerror(errno), errno);
+	if (mode == 1){
+		while (bind(dataser->listenfd, (struct sockaddr*)&(dataser->addr), sizeof(dataser->addr)) == -1) {
+			printf("Error bind(): %s(%d)\n", strerror(errno), errno);
 
-		port = rand()&65535;
-		while (port < 20000)
 			port = rand()&65535;
+			while (port < 20000)
+				port = rand()&65535;
 
-		dataser->addr.sin_port = htons(port);
-		continue;
-		// return 1;
-		// return -ERRORBIND;
+			dataser->addr.sin_port = htons(port);
+			continue;
+			// return 1;
+			// return -ERRORBIND;
+		}
+		strcpy(ipaddr, "127.0.0.1");
+		sprintf(IpPort, "127,0,0,1,%d,%d", port/256, port%256);
+	} else
+	{
+		if (bind(dataser->listenfd, (struct sockaddr*)&(dataser->addr), sizeof(dataser->addr)) == -1) {
+			printf("Error bind(): %s(%d)\n", strerror(errno), errno);
+			return -ERRORBIND;
+		}
 	}
-	strcpy(ipaddr, "127.0.0.1");
-	sprintf(IpPort, "127,0,0,1,%d,%d", port/256, port%256);
 
 	if (listen(dataser->listenfd, 1) == -1) {
 		printf("Error listen(): %s(%d)\n", strerror(errno), errno);
 		// return 1;
-		return ERRORLISTEN;
+		return -ERRORLISTEN;
 	}
 
 	return 0;
@@ -181,7 +272,7 @@ int crtSer_Server(char* IpPort, struct connClient* cc){
 	struct ServerUtils* dataser = cc->dataSer;
 	initServerUtils(dataser);
 
-	return crtSer(IpPort, dataser);
+	return crtSer(IpPort, dataser, 1);
 }
 
 int crtSer_Client(char* IpPort, struct ClientUtils* cu){
@@ -189,7 +280,7 @@ int crtSer_Client(char* IpPort, struct ClientUtils* cu){
 	struct ServerUtils* dataser = cu->dataSer;
 	initServerUtils(dataser);
 
-	return crtSer(IpPort, dataser);
+	return crtSer(IpPort, dataser, 0);
 }
 
 int waitConn(struct ServerUtils* su){
@@ -240,16 +331,16 @@ int cmd_LISTD(int connfd, char* pathname, char* msg, int maxlen) {
                 strcpy(type, "directory");
                 break;
             case DT_FIFO:
-                strcpy(type, "named pipe (FIFO)");
+                strcpy(type, "FIFO/pipe");
                 break;
             case DT_LNK:
-                strcpy(type, "symbolic link");
+                strcpy(type, "symlink");
                 break;
             case DT_REG:
                 strcpy(type, "regular file");
                 break;
             case DT_SOCK:
-                strcpy(type, "UNIX domain socket");
+                strcpy(type, "socket");
                 break;
             default:
                 strcpy(type, "Unknown");
@@ -297,19 +388,31 @@ int cmd_LISTF(int connfd, char* curpath, char* msg, int maxlen) {
         t--;
     // printf("%x\n", &(path_stat.st_atime));
     // printf("%x\n", &(path_stat.st_mtime));
-    sprintf(msg, "name: %s; size: %lu bytes; last access: %s; last modification: %s\n",
-                    curpath+t, path_stat.st_size,
-                    asctime(localtime(&(path_stat.st_atime))),
-                    asctime(localtime(&(path_stat.st_mtime))) );
+    char type[20];
+    switch (path_stat.st_mode & S_IFMT) {
+           case S_IFBLK:  sprintf(type, "block device");            break;
+           case S_IFCHR:  sprintf(type, "character device");        break;
+           case S_IFDIR:  sprintf(type, "directory");               break;
+           case S_IFIFO:  sprintf(type, "FIFO/pipe");               break;
+           case S_IFLNK:  sprintf(type, "symlink");                 break;
+           case S_IFREG:  sprintf(type, "regular file");            break;
+           case S_IFSOCK: sprintf(type, "socket");                  break;
+           default:       sprintf(type, "unknown");                break;
+           }
+    sprintf(msg, "name: %s\n\ttype: %s\n\tsize: %lu bytes\n\tlast access: %s\tlast modification: %s\n",
+                    curpath+t, type, path_stat.st_size,
+                    ctime(&(path_stat.st_atime)),
+                    // asctime(localtime(&(path_stat.st_atime))),
+                    ctime(&(path_stat.st_mtime)) );
     p = sendMsg(connfd, msg, strlen(msg));
     if (p < 0){
     	return -ERRORDISCONN;
     }
-    sprintf(msg, "Complete!\n");
-    p = sendMsg(connfd, msg, strlen(msg));
-    if (p < 0){
-        return -ERRORDISCONN;
-    }
+    // sprintf(msg, "Complete!\n");
+    // p = sendMsg(connfd, msg, strlen(msg));
+    // if (p < 0){
+    //     return -ERRORDISCONN;
+    // }
     return 0;
 }
 
@@ -329,54 +432,74 @@ int recv_list(int fd) {
 	int p;
 	char msg[8192];
 	do{
-        p = waitMsg(fd, msg, 8192);
+        p = waitData(fd, msg, 8192);
         if (p < 0) {    // error code!
             printf("waitMsg Error! %d\n", -p);
             return p;
         }
-    } while (endWith(msg, "Complete!"));//while (strlen(msg) == 0);
+        printf("%s", msg);
+    } while (p > 0);//while (endWith(msg, "Complete!"));//while (strlen(msg) == 0);
     return 0;
 }
 
 int send_file(char* filename, int fd){
 	int p;
 	char tmp[MAXBUFLEN];
-	FILE* f = fopen(filename, "rb");
-	size_t len;
-	while ((len = fread(tmp, 1, MAXBUFLEN, f)) > 0){
-		printf("%lu\n", len);
+	// FILE* f = fopen(filename, "rb");
+	int f = open(filename, O_RDONLY);
+	if (f < 0){
+		return -ERRORREADFROMDISC;
+	}
+
+	ssize_t len;
+	while ((len = read(f, tmp, MAXBUFLEN)) > 0){
+		printf("read size=%lu\n", len);
 		p = sendMsg(fd, tmp, len);
 		if (p < 0){
-			fclose(f);
+			close(f);
 			return -ERRORDISCONN;
 		}
 	}
-	sprintf(tmp, "Complete!\n");
-	p = sendMsg(fd, tmp, strlen(tmp));
-	if (p < 0){
-		fclose(f);
-		return -ERRORDISCONN;
+	if (len == -1){
+		close(f);
+		return -ERRORREADFROMDISC;
 	}
-	fclose(f);
+	// sprintf(tmp, "\4");
+	// p = sendMsg(fd, tmp, strlen(tmp));
+	// if (p < 0){
+	// 	fclose(f);
+	// 	return -ERRORDISCONN;
+	// }
+
+	close(f);
 	return 0;
 }
 
 int recv_file(char* filename, int fd){
 	int p;
 	char tmp[MAXBUFLEN+10];
-	FILE* f = fopen(filename, "wb");
+	// FILE* f = fopen(filename, "wb");
+	int f = open(filename, O_CREAT|O_WRONLY, S_IRWXU|S_IRWXG|S_IROTH);
+	if (f < 0){
+		return -ERRORREADFROMDISC;
+	}
 	while (1){
-		p = waitMsg(fd, tmp, MAXBUFLEN);
+		p = waitData(fd, tmp, MAXBUFLEN);
 		if (p < 0){
-			fclose(f);
+			close(f);
 			return -ERRORDISCONN;
 		}
-		if (endWith(tmp, "Complete!")){
-			fwrite(tmp, 1, strlen(tmp)-9, f);
+		// if (endWith(tmp, "Complete!")){
+		if (p == 0) {
+		// if (endWith(tmp, "\4")){
 			break;
 		}
-		fwrite(tmp, 1, strlen(tmp), f);
+		p = write(f, tmp, p);
+		if (p < 0){
+			close(f);
+			return -ERRORREADFROMDISC;
+		}
 	}
-	fclose(f);
+	close(f);
 	return 0;
 }

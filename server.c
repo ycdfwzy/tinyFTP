@@ -9,6 +9,7 @@
 #include <memory.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <pthread.h>
 #include "command.h"
 #include "errorcode.h"
 #include "socketutils.h"
@@ -175,11 +176,11 @@ int serve_client(struct connClient* cc){
 	char sentence[MAXBUFLEN];
     int connfd = cc->connfd;
     
-    p = login(connfd, sentence, MAXBUFLEN);
-    if (p < 0) {    // error code
-        printf("login Error: %d\n", -p);
-        return -p;
-    }
+    // p = login(connfd, sentence, MAXBUFLEN);
+    // if (p < 0) {    // error code
+    //     printf("login Error: %d\n", -p);
+    //     return -p;
+    // }
 
     while (1) {
         p = comunicate(cc, sentence, MAXBUFLEN);
@@ -191,9 +192,32 @@ int serve_client(struct connClient* cc){
 	return 0;
 }
 
+void* thread_serve_client(void* param){
+    struct connClient* cc = (struct connClient*)param;
+
+    int serve_ret = serve_client(cc);
+
+    printf("serve_client %d finished\n", cc->connfd);
+    if (serve_ret == ERRORQUIT){
+        printf("Client %d disconnect Successfully!\n", cc->connfd);
+        close(cc->connfd);
+        releconnClient(cc);
+        return NULL;//continue;
+    } else
+    if (serve_ret != 0 && serve_ret != ERRORREAD){
+        close(cc->connfd);
+        releconnClient(cc);
+        return NULL;
+    }
+    close(cc->connfd);
+    releconnClient(cc);
+
+    return NULL;
+}
+
 int main(int argc, char **argv) {
     int port = 6789;
-    if (argc == 5){
+    if (argc == 3 || argc == 5){
         for (int i = 1; i < 5; i += 2){
             if (strcmp(argv[i], "-port") == 0){
                 sscanf(argv[i+1], "%d", &port);
@@ -251,25 +275,29 @@ int main(int argc, char **argv) {
 
         getcwd(server.conn[index].curdir, 512);
 
-		int serve_ret = serve_client(&server.conn[index]);
-		printf("serve_client finished\n");
-        if (serve_ret == ERRORQUIT){
-            printf("Client disconnect Successfully!\n");
-            close(server.conn[index].connfd);
-            releconnClient(&(server.conn[index]));
-            continue;
-        } else
-		if (serve_ret != 0 && serve_ret != ERRORREAD){
-            close(server.conn[index].connfd);
-            releconnClient(&(server.conn[index]));
-			return serve_ret;
-		}
-        close(server.conn[index].connfd);
-        releconnClient(&(server.conn[index]));
+        // int serve_ret = serve_client(&server.conn[index]);
+        // printf("serve_client %d finished\n", server.conn[index].connfd);
+        // if (serve_ret == ERRORQUIT){
+        //     printf("Client %d disconnect Successfully!\n", server.conn[index].connfd);
+        //     close(server.conn[index].connfd);
+        //     releconnClient(&(server.conn[index]));
+        //     continue;
+        // } else
+        // if (serve_ret != 0 && serve_ret != ERRORREAD){
+        //     close(server.conn[index].connfd);
+        //     releconnClient(&(server.conn[index]));
+        //     return serve_ret;
+        // }
+        // close(server.conn[index].connfd);
+        // releconnClient(&(server.conn[index]));
+
+        pthread_t pid;
+        pthread_create(&pid, NULL, thread_serve_client, (void*)&(server.conn[index]));
+		pthread_detach(pid);
         // break;
 	}
-    releServerUtils(&server);
     // close(connfd);
 	close(server.listenfd);
+    releServerUtils(&server);
 	return 0;
 }

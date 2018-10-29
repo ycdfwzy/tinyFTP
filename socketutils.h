@@ -48,6 +48,7 @@ void dropOtherConn_Client(struct ClientUtils* cu);
 void dropOtherConn_CONN(struct connClient* cc);
 int getfisrtConn(struct ServerUtils*);
 int waitMsg(int connfd, char* msg, int MAXLEN);
+int waitData(int connfd, char* msg, int MAXLEN);
 int sendMsg(int connfd, char* msg, int len);
 
 #endif

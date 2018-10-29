@@ -14,6 +14,7 @@ enum ERRORC{
     ERRORIPPORT,
     ERRORREADFROMDISC,
     ERRORDISCONN,
+    ERROREXT,
 };
 
 #endif
