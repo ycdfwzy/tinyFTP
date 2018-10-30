@@ -177,7 +177,7 @@ void toabsPath(char* oripath, char* curdir){
     free(tmp);
 }
 
-int CmdHandle(struct Command cmd, struct connClient* cc, char* msg, int maxlen) {
+int CmdHandle(struct Command cmd, struct connClient* cc, char* msg) {
     int p;
     int connfd = cc->connfd;
     char tmp[8192];
@@ -623,7 +623,8 @@ int CmdHandle(struct Command cmd, struct connClient* cc, char* msg, int maxlen) 
             if (exist(tmp)){
                 msg = "350 Please send target name!\r\n\0";
                 p = sendMsg(connfd, msg, strlen(msg));
-                strcpy(cc->oldpath, cmd.params[0]);
+                if (p == 0)
+                    strcpy(cc->oldpath, tmp);
             } else
             {
                 msg = "550 RNFR Failed!\r\n\0";
@@ -637,22 +638,32 @@ int CmdHandle(struct Command cmd, struct connClient* cc, char* msg, int maxlen) 
     } else
 
     if (strcmp(cmd.cmdName, "RNTO") == 0) {
+        printf("in RNTO\n");
         if (cc->oldpath[0] == '\0'){
             msg = "503 Please source filename!\r\n\0";
             p = sendMsg(connfd, msg, strlen(msg));
         } else
         if (cmd.num_params == 1){
+            printf("in RNTO\n");
             strcpy(tmp, cmd.params[0]);
             toabsPath(tmp, cc->curdir);
+            printf("tmp=%s\n", tmp);
 
             char rootpath[512];
             getcwd(rootpath, 512);
+            printf("rootpath=%s\n", rootpath);            
             if (!startWith(tmp, rootpath)){ // permission denied!
                 sprintf(msg, "550 %s: You have no Permission!\r\n", tmp);
                 p = sendMsg(connfd, msg, strlen(msg));
+                cc->oldpath[0] = '\0';
             } else
             if (rename(cc->oldpath, tmp) == 0){
                 msg = "250 Rename successfully!\r\n\0";
+                p = sendMsg(connfd, msg, strlen(msg));
+                cc->oldpath[0] = '\0';
+            } else
+            {
+                msg = "550 RNTO Failed!\r\n\0";
                 p = sendMsg(connfd, msg, strlen(msg));
                 cc->oldpath[0] = '\0';
             }
@@ -660,7 +671,9 @@ int CmdHandle(struct Command cmd, struct connClient* cc, char* msg, int maxlen) 
         {
             msg = "550 RNTO Failed!\r\n\0";
             p = sendMsg(connfd, msg, strlen(msg));
+            cc->oldpath[0] = '\0';
         }
+        cc->oldpath[0] = '\0';
     } else
 
     {

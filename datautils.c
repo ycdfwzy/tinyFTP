@@ -310,7 +310,7 @@ void* waitConn_thread(void* param){
 	return NULL;
 }
 
-int cmd_LISTD(int connfd, char* pathname, char* msg, int maxlen) {
+int cmd_LISTD(int connfd, char* pathname, char* msg) {
     int p;
     struct dirent *dir;
     DIR *dp;
@@ -368,7 +368,7 @@ int cmd_LISTD(int connfd, char* pathname, char* msg, int maxlen) {
     return 0;
 }
 
-int cmd_LISTF(int connfd, char* curpath, char* msg, int maxlen) {
+int cmd_LISTF(int connfd, char* curpath, char* msg) {
     int p;
     struct stat path_stat;
     if (stat(curpath, &path_stat) != 0){ //nearly impossible
@@ -425,21 +425,21 @@ int cmd_LISTF(int connfd, char* curpath, char* msg, int maxlen) {
 
 int send_list(char* param, int fd) {
 	int p;
-	char msg[8192];
+	char msg[MAXBUFLEN];
 	if (is_directory(param)){
-		p = cmd_LISTD(fd, param, msg, 8192);
+		p = cmd_LISTD(fd, param, msg);
 	} else
 	{
-		p = cmd_LISTF(fd, param, msg, 8192);
+		p = cmd_LISTF(fd, param, msg);
 	}
 	return p;
 }
 
 int recv_list(int fd) {
 	int p;
-	char msg[8192];
+	char msg[MAXBUFLEN];
 	do{
-        p = waitData(fd, msg, 8192);
+        p = waitData(fd, msg, MAXBUFLEN);
         if (p < 0) {    // error code!
             printf("waitMsg Error! %d\n", -p);
             return p;

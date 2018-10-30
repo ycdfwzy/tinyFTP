@@ -171,7 +171,7 @@ int comunicate(struct connClient* cc, char* sentence, int maxlen) {
         releCmd(&cmd);
         return p;
     }
-    p = CmdHandle(cmd, cc, sentence, maxlen);
+    p = CmdHandle(cmd, cc, sentence);
     if (p < 0) {    // error code
         printf("CmdHandle Error: %d\n", -p);
         releCmd(&cmd);
@@ -229,7 +229,7 @@ void* thread_serve_client(void* param){
 int main(int argc, char **argv) {
     int port = 6789;
     if (argc == 3 || argc == 5){
-        for (int i = 1; i < 5; i += 2){
+        for (int i = 1; i < argc; i += 2){
             if (strcmp(argv[i], "-port") == 0){
                 sscanf(argv[i+1], "%d", &port);
             } else

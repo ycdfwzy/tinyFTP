@@ -11,6 +11,6 @@ struct Command{
 void initCmd(struct Command* cmd);
 void releCmd(struct Command* cmd);
 int Msg2Command(char* msg, struct Command* cmd);
-int CmdHandle(struct Command cmd, struct connClient* cc, char* msg, int maxlen);
+int CmdHandle(struct Command cmd, struct connClient* cc, char* msg);
 
 #endif

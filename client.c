@@ -89,7 +89,7 @@ int login(int sockfd, char* sentence, int maxlen){
 
 int toRename = 0;
 
-int cmd_RNFR(struct Command* cmd, char* snd, char* rec, struct ClientUtils* cu) {
+int cmd_RNFR(char* snd, char* rec, struct ClientUtils* cu) {
     int p = sendMsg(cu->sockfd, snd, strlen(snd));
     int idx;
     if (p < 0) {    // error code!
@@ -101,7 +101,6 @@ int cmd_RNFR(struct Command* cmd, char* snd, char* rec, struct ClientUtils* cu) 
         p = waitMsg(cu->sockfd, rec, MAXBUFLEN);
         if (p < 0) {    // error code!
             printf("waitMsg Error! %d\n", -p);
-            // releCmd(&cmd);
             return p;
         }
         idx = indexofDDDS(rec);
@@ -114,7 +113,7 @@ int cmd_RNFR(struct Command* cmd, char* snd, char* rec, struct ClientUtils* cu) 
     return 0;
 }
 
-int cmd_RNTO(struct Command* cmd, char* snd, char* rec, struct ClientUtils* cu) {
+int cmd_RNTO(char* snd, char* rec, struct ClientUtils* cu) {
     int idx;
     if (toRename == 0){
         printf("Please give RNFR cmd first!\n");
@@ -189,7 +188,7 @@ int cmd_PORT(struct Command* cmd, char* snd, char* rec, struct ClientUtils* cu) 
     return 0;
 }
 
-int cmd_PASV(struct Command* cmd, char* snd, char* rec, struct ClientUtils* cu) {
+int cmd_PASV(char* snd, char* rec, struct ClientUtils* cu) {
     int idx, p;
     dropOtherConn_Client(cu);
 
@@ -357,7 +356,7 @@ int cmd_RETR(struct Command* cmd, char* snd, char* rec, struct ClientUtils* cu) 
     return 0;
 }
 
-int cmd_LIST(struct Command* cmd, char* snd, char* rec, struct ClientUtils* cu) {
+int cmd_LIST(char* snd, char* rec, struct ClientUtils* cu) {
     int idx, p;
     if (cu->dataSer == NULL && cu->dataCli == NULL){
         printf("Please choose PASV/PORT mode first!\n");
@@ -416,7 +415,7 @@ int cmd_LIST(struct Command* cmd, char* snd, char* rec, struct ClientUtils* cu) 
     return 0;
 }
 
-int cmd_NORMAL(struct Command* cmd, char* snd, char* rec, struct ClientUtils* cu) {
+int cmd_NORMAL(char* snd, char* rec, struct ClientUtils* cu) {
     int idx;
     int p = sendMsg(cu->sockfd, snd, strlen(snd));
     if (p < 0) {    // error code!
@@ -528,16 +527,16 @@ int communicate(struct ClientUtils* cu) {
     }
 
     if (strcmp(cmd.cmdName, "RNFR") == 0) {
-        p = cmd_RNFR(&cmd, snd, rec, cu);
+        p = cmd_RNFR(snd, rec, cu);
     } else
     if (strcmp(cmd.cmdName, "RNTO") == 0) {
-        p = cmd_RNTO(&cmd, snd, rec, cu);
+        p = cmd_RNTO(snd, rec, cu);
     } else
     if (strcmp(cmd.cmdName, "PORT") == 0) {
         p = cmd_PORT(&cmd, snd, rec, cu);
     } else
     if (strcmp(cmd.cmdName, "PASV") == 0) {
-        p = cmd_PASV(&cmd, snd, rec, cu);
+        p = cmd_PASV(snd, rec, cu);
     } else
     if (strcmp(cmd.cmdName, "STOR") == 0) {
         p = cmd_STOR(&cmd, snd, rec, cu);
@@ -546,10 +545,10 @@ int communicate(struct ClientUtils* cu) {
         p = cmd_RETR(&cmd, snd, rec, cu);
     } else
     if (strcmp(cmd.cmdName, "LIST") == 0){
-        p = cmd_LIST(&cmd, snd, rec, cu);
+        p = cmd_LIST(snd, rec, cu);
     } else
     {
-        p = cmd_NORMAL(&cmd, snd, rec, cu);
+        p = cmd_NORMAL(snd, rec, cu);
     }
 
     if (p < 0){
@@ -569,7 +568,7 @@ int main(int argc, char **argv) {
     int port = 6789;
     char ipaddr[20] = "127.0.0.1";
     if (argc == 3 || argc == 5){
-        for (int i = 1; i < 5; i += 2){
+        for (int i = 1; i < argc; i += 2){
             if (strcmp(argv[i], "-port") == 0){
                 sscanf(argv[i+1], "%d", &port);
             } else
