@@ -13,6 +13,7 @@ void getfilename(char* path);
 int crtSer_Server(char* IpPort, struct connClient* cc);
 int crtSer_Client(char* IpPort, struct ClientUtils* cu);
 int waitConn(struct ServerUtils* su);
+void* waitConn_thread(void* param);
 int conSer_Server(char* IpPort, struct connClient* cc);
 int conSer_Client(char* IpPort, struct ClientUtils* cu);
 int send_file(char* filename, int fd);

@@ -8,6 +8,7 @@
 #include <string.h>
 #include <memory.h>
 #include <stdio.h>
+#include <pthread.h>
 #include "socketutils.h"
 #include "constants.h"
 #include "command.h"
@@ -162,11 +163,15 @@ int cmd_PORT(struct Command* cmd, char* snd, char* rec, struct ClientUtils* cu) 
         printf("sendMsg Error! %d\n", -p);
         return p;
     }
-    p = waitConn(cu->dataSer);
-    if (p < 0){
-        printf("waitConn Error! %d\n", -p);
-        return p;
-    }
+    /*nonblock*/
+    pthread_t pid;
+    pthread_create(&pid, NULL, waitConn_thread, (void*)cu->dataSer);
+    pthread_detach(pid);
+    // p = waitConn(cu->dataSer);
+    // if (p < 0){
+    //     printf("waitConn Error! %d\n", -p);
+    //     return p;
+    // }
     do{
         p = waitMsg(cu->sockfd, rec, MAXBUFLEN);
         if (p < 0) {    // error code!
@@ -596,12 +601,12 @@ int main(int argc, char **argv) {
         return 1;
     }
     printf("sockid=%d\n", client.sockfd);
-    // p = login(client.sockfd, sentence, MAXBUFLEN);
-    // if (p < 0) {
-    //     close(client.sockfd);
-    //     printf("login Error! %d\n", -p);
-    //     return -p;
-    // }
+    p = login(client.sockfd, sentence, MAXBUFLEN);
+    if (p < 0) {
+        close(client.sockfd);
+        printf("login Error! %d\n", -p);
+        return -p;
+    }
     while (1) {
         p = communicate(&client);
         if (p == -ERRORQUIT){

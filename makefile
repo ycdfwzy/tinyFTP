@@ -2,10 +2,10 @@ server: server.c command.o socketutils.o constants.o datautils.o errorcode.h
 	gcc server.c command.o socketutils.o constants.o datautils.o -o server -W -Wall -lpthread
 
 client: client.c socketutils.o constants.o command.o datautils.o errorcode.h
-	gcc client.c socketutils.o constants.o command.o datautils.o -o client -W -Wall
+	gcc client.c socketutils.o constants.o command.o datautils.o -o client -W -Wall -lpthread
 
 command.o: command.c datautils.h command.h socketutils.h constants.h
-	gcc -c command.c -o command.o -W -Wall
+	gcc -c command.c -o command.o -W -Wall -lpthread
 
 socketutils.o: socketutils.c socketutils.h errorcode.h
 	gcc -c socketutils.c -o socketutils.o -W -Wall

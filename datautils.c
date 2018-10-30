@@ -137,10 +137,10 @@ int extract(char* IpPort, char* ipaddr, int* port){
 		char tmp[40];
 		sscanf(IpPort, "%d,%d,%d,%d,%d,%d",
 			&h[0], &h[1], &h[2], &h[3], &h[4], &h[5]);
-		printf("IpPort=%s\n", IpPort);
+		// printf("IpPort=%s\n", IpPort);
 		sprintf(tmp, "%d,%d,%d,%d,%d,%d",
 			h[0], h[1], h[2], h[3], h[4], h[5]);
-		printf("tmp=%s\n", tmp);
+		// printf("tmp=%s\n", tmp);
 		if (!startWith(IpPort, tmp)){
 			return -ERROREXT;
 		}
@@ -301,6 +301,13 @@ int waitConn(struct ServerUtils* su){
         continue;
     }
     return 0;
+}
+
+void* waitConn_thread(void* param){
+	struct ServerUtils* su = (struct ServerUtils*) param;
+	int p = waitConn(su);
+	printf("after waitConn %d\n", p);
+	return NULL;
 }
 
 int cmd_LISTD(int connfd, char* pathname, char* msg, int maxlen) {

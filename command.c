@@ -12,6 +12,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <time.h>
+#include <pthread.h>
 
 void initCmd(struct Command* cmd) {
     cmd->cmdName = NULL;
@@ -200,14 +201,6 @@ int CmdHandle(struct Command cmd, struct connClient* cc, char* msg, int maxlen) 
             p = sendMsg(connfd, msg, strlen(msg));
         } else
         {
-            int fd;
-            if (cc->dataSer != NULL){
-                fd = getfisrtConn(cc->dataSer);
-            } else
-            {
-                fd = cc->dataCli->sockfd;
-            }
-
             if (cmd.num_params == 1){
                 strcpy(tmp, cmd.params[0]);
                 toabsPath(tmp, cc->curdir);
@@ -229,23 +222,37 @@ int CmdHandle(struct Command cmd, struct connClient* cc, char* msg, int maxlen) 
                     sprintf(msg, "150 Start transfer(%d bytes)\r\n", sz);
                     p = sendMsg(connfd, msg, strlen(msg));
 
-                    p = send_file(tmp, fd);
-                    sleep(1);
-                    dropOtherConn_CONN(cc);
-                    
-                    if (p == 0){
-                        msg = "226 retr file successfully.\r\n\0";
+                    int fd = -1;
+                    if (cc->dataSer != NULL){
+                        fd = getfisrtConn(cc->dataSer);
+                    } else
+                    {
+                        fd = cc->dataCli->sockfd;
+                    }
+
+                    if (fd == -1) {
+                        sprintf(msg, "425 Connection is not established!\r\n");
                         p = sendMsg(connfd, msg, strlen(msg));
                     } else
-                    if (p == -ERRORREADFROMDISC){
-                        printf("Error when read from disk!\n");
-                        msg = "551 Error when read from disk!\r\n\0";
-                        p = sendMsg(connfd, msg, strlen(msg));
-                    } else
-                    if (p == -ERRORDISCONN){
-                        printf("data connection Disconnect!\n");
-                        msg = "426 Disconnect!\r\n\0";
-                        p = sendMsg(connfd, msg, strlen(msg));
+                    {
+                        p = send_file(tmp, fd);
+                        sleep(1);
+                        dropOtherConn_CONN(cc);
+                        
+                        if (p == 0){
+                            msg = "226 retr file successfully.\r\n\0";
+                            p = sendMsg(connfd, msg, strlen(msg));
+                        } else
+                        if (p == -ERRORREADFROMDISC){
+                            printf("Error when read from disk!\n");
+                            msg = "551 Error when read from disk!\r\n\0";
+                            p = sendMsg(connfd, msg, strlen(msg));
+                        } else
+                        if (p == -ERRORDISCONN){
+                            printf("data connection Disconnect!\n");
+                            msg = "426 Disconnect!\r\n\0";
+                            p = sendMsg(connfd, msg, strlen(msg));
+                        }
                     }
                 }
             } else
@@ -264,13 +271,6 @@ int CmdHandle(struct Command cmd, struct connClient* cc, char* msg, int maxlen) 
             p = sendMsg(connfd, msg, strlen(msg));
         } else
         {
-            int fd;
-            if (cc->dataSer != NULL){
-                fd = getfisrtConn(cc->dataSer);
-            } else
-            {
-                fd = cc->dataCli->sockfd;
-            }
 
             if (cmd.num_params == 1){
                 strcpy(tmp, cmd.params[0]);
@@ -288,22 +288,36 @@ int CmdHandle(struct Command cmd, struct connClient* cc, char* msg, int maxlen) 
                     sprintf(msg, "150 Start recv\r\n");
                     p = sendMsg(connfd, msg, strlen(msg));
 
-                    p = recv_file(tmp, fd);
-                    dropOtherConn_CONN(cc);
+                    int fd = -1;
+                    if (cc->dataSer != NULL){
+                        fd = getfisrtConn(cc->dataSer);
+                    } else
+                    {
+                        fd = cc->dataCli->sockfd;
+                    }
 
-                    if (p == 0){
-                        msg = "226 stor file successfully.\r\n\0";
+                    if (fd == -1) {
+                        sprintf(msg, "425 Connection is not established!\r\n");
                         p = sendMsg(connfd, msg, strlen(msg));
                     } else
-                    if (p == -ERRORREADFROMDISC){
-                        printf("Error when write to disk!\n");
-                        msg = "552 Error when write to disk!\r\n\0";
-                        p = sendMsg(connfd, msg, strlen(msg));
-                    } else
-                    if (p == -ERRORDISCONN){
-                        printf("data connection Disconnect!\n");
-                        msg = "426 Disconnect!\r\n\0";
-                        p = sendMsg(connfd, msg, strlen(msg));
+                    {
+                        p = recv_file(tmp, fd);
+                        dropOtherConn_CONN(cc);
+
+                        if (p == 0){
+                            msg = "226 stor file successfully.\r\n\0";
+                            p = sendMsg(connfd, msg, strlen(msg));
+                        } else
+                        if (p == -ERRORREADFROMDISC){
+                            printf("Error when write to disk!\n");
+                            msg = "552 Error when write to disk!\r\n\0";
+                            p = sendMsg(connfd, msg, strlen(msg));
+                        } else
+                        if (p == -ERRORDISCONN){
+                            printf("data connection Disconnect!\n");
+                            msg = "426 Disconnect!\r\n\0";
+                            p = sendMsg(connfd, msg, strlen(msg));
+                        }
                     }
                 }
 
@@ -383,8 +397,11 @@ int CmdHandle(struct Command cmd, struct connClient* cc, char* msg, int maxlen) 
                 sprintf(msg, "227 Entering Passive Mode (%s)\r\n", tmp);
                 p = sendMsg(connfd, msg, strlen(msg));
                 if (p == 0){
-                    p = waitConn(cc->dataSer);
-                    printf("after waitConn: %d\n", p);
+                    pthread_t pid;
+                    pthread_create(&pid, NULL, waitConn_thread, (void*)(cc->dataSer));
+                    pthread_detach(pid);
+                    // p = waitConn(cc->dataSer);
+                    // printf("after waitConn: %d\n", p);
                 }
             } else
             {
@@ -477,22 +494,28 @@ int CmdHandle(struct Command cmd, struct connClient* cc, char* msg, int maxlen) 
             p = sendMsg(connfd, msg, strlen(msg));
         } else
         {
-            int fd;
-            if (cc->dataSer != NULL){
-                fd = getfisrtConn(cc->dataSer);
-            } else
-            {
-                fd = cc->dataCli->sockfd;
-            }
-
             if (cmd.num_params == 0){
                 sprintf(msg, "150 Start transfer\r\n");
                 p = sendMsg(connfd, msg, strlen(msg));
 
-                p = send_list(cc->curdir, fd);
-                if (p == 0){
-                    msg = "226 send list successfully.\r\n\0";
+                int fd = -1;
+                if (cc->dataSer != NULL){
+                    fd = getfisrtConn(cc->dataSer);
+                } else
+                {
+                    fd = cc->dataCli->sockfd;
+                }
+
+                if (fd == -1) {
+                    sprintf(msg, "425 Connection is not established!\r\n");
                     p = sendMsg(connfd, msg, strlen(msg));
+                } else
+                {
+                    p = send_list(cc->curdir, fd);
+                    if (p == 0){
+                        msg = "226 send list successfully.\r\n\0";
+                        p = sendMsg(connfd, msg, strlen(msg));
+                    }
                 }
             } else
             if (cmd.num_params == 1){
@@ -515,23 +538,37 @@ int CmdHandle(struct Command cmd, struct connClient* cc, char* msg, int maxlen) 
                 {
                     sprintf(msg, "150 Start transfer\r\n");
                     p = sendMsg(connfd, msg, strlen(msg));
+                    sleep(0.5);
+                    int fd = -1;
+                    if (cc->dataSer != NULL){
+                        fd = getfisrtConn(cc->dataSer);
+                    } else
+                    {
+                        fd = cc->dataCli->sockfd;
+                    }
 
-                    p = send_list(tmp, fd);
-                    sleep(1);
-                    dropOtherConn_CONN(cc);
-                    if (p == 0){
-                        msg = "226 send list successfully.\r\n\0";
+                    if (fd == -1) {
+                        sprintf(msg, "425 Connection is not established!\r\n");
                         p = sendMsg(connfd, msg, strlen(msg));
                     } else
-                    if (p == -ERRORREADFROMDISC){
-                        printf("Error when read from disk!\n");
-                        msg = "451 Error when read from disk!\r\n\0";
-                        p = sendMsg(connfd, msg, strlen(msg));
-                    } else
-                    if (p == -ERRORDISCONN){
-                        printf("Path Not found!\n");
-                        msg = "426 Disconnect!\r\n\0";
-                        p = sendMsg(connfd, msg, strlen(msg));
+                    {
+                        p = send_list(tmp, fd);
+                        sleep(1);
+                        dropOtherConn_CONN(cc);
+                        if (p == 0){
+                            msg = "226 send list successfully.\r\n\0";
+                            p = sendMsg(connfd, msg, strlen(msg));
+                        } else
+                        if (p == -ERRORREADFROMDISC){
+                            printf("Error when read from disk!\n");
+                            msg = "451 Error when read from disk!\r\n\0";
+                            p = sendMsg(connfd, msg, strlen(msg));
+                        } else
+                        if (p == -ERRORDISCONN){
+                            printf("Path Not found!\n");
+                            msg = "426 Disconnect!\r\n\0";
+                            p = sendMsg(connfd, msg, strlen(msg));
+                        }
                     }
                 }
             } else

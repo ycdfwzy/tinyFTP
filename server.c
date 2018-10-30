@@ -187,11 +187,11 @@ int serve_client(struct connClient* cc){
 	char sentence[MAXBUFLEN];
     int connfd = cc->connfd;
     
-    // p = login(connfd, sentence, MAXBUFLEN);
-    // if (p < 0) {    // error code
-    //     printf("login Error: %d\n", -p);
-    //     return -p;
-    // }
+    p = login(connfd, sentence, MAXBUFLEN);
+    if (p < 0) {    // error code
+        printf("login Error: %d\n", -p);
+        return -p;
+    }
 
     while (1) {
         p = comunicate(cc, sentence, MAXBUFLEN);
