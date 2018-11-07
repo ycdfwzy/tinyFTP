@@ -36,23 +36,6 @@ void releCmd(struct Command* cmd) {
     }
 }
 
-// void sampleOsType(char* buffer){
-//     int f=0;
-//     // char buffer[80]="";
-//     char *file="/proc/sys/kernel/ostype";
-//     f = open(file, O_RDONLY);
-//     if (f == 0) {
-//         printf("error to open: %s\n", file);
-//         exit(EXIT_FAILURE);
-//     }
-//     read(f, (void *)buffer, 80);
-//     int len = strlen(buffer);
-//     buffer[len-1]='\r';
-//     buffer[len++]='\n';
-//     buffer[len]='\0';
-//     close(f);
-// }
-
 int getlen(char* msg){
     int len = 0;
     while ((*msg) != 0 && (*msg) != ' '){
@@ -177,10 +160,44 @@ void toabsPath(char* oripath, char* curdir){
     free(tmp);
 }
 
+// struct CmdHandleInfo{
+//     struct Command cmd;
+//     struct connClient* cc;
+//     char* msg;
+// };
+
+// void* RETR_thread(void* arg){
+//     struct CmdHandleInfo* argp = (struct CmdHandleInfo*) arg;
+//     struct Command cmd = argp->cmd;
+//     struct connClient* cc = argp->cc;
+//     char* msg = argp->msg;
+//     int connfd = cc->connfd;
+//     char tmp[MAXBUFLEN];
+//     int p;
+
+
+
+//     return NULL;
+// }
+
+// void* STOR_thread(void* arg){
+//     struct CmdHandleInfo* argp = (struct CmdHandleInfo*) arg;
+//     struct Command cmd = argp->cmd;
+//     struct connClient* cc = argp->cc;
+//     char* msg = argp->msg;
+//     int connfd = cc->connfd;
+//     char tmp[MAXBUFLEN];
+//     int p;
+
+
+
+//     return NULL;
+// }
+
 int CmdHandle(struct Command cmd, struct connClient* cc, char* msg) {
     int p;
     int connfd = cc->connfd;
-    char tmp[8192];
+    char tmp[MAXBUFLEN];
     printf("%s\n", cmd.cmdName);
 
     if (cc->oldpath[0] != '\0'){ // RNFR to handle
@@ -204,7 +221,7 @@ int CmdHandle(struct Command cmd, struct connClient* cc, char* msg) {
             if (cmd.num_params == 1){
                 strcpy(tmp, cmd.params[0]);
                 toabsPath(tmp, cc->curdir);
-                printf("abspath %s\n", tmp);
+                printf("RETR_thread: abspath %s\n", tmp);
 
                 char rootpath[512];
                 getcwd(rootpath, 512);
@@ -214,7 +231,7 @@ int CmdHandle(struct Command cmd, struct connClient* cc, char* msg) {
                 } else
 
                 if (!exist(tmp) || is_directory(tmp)){
-                    printf("File Not found!\n");
+                    printf("RETR_thread: File Not found!\n");
                     msg = "451 File Not found!\r\n\0";
                 } else
                 {
@@ -236,7 +253,6 @@ int CmdHandle(struct Command cmd, struct connClient* cc, char* msg) {
                     } else
                     {
                         p = send_file(tmp, fd);
-                        sleep(1);
                         dropOtherConn_CONN(cc);
                         
                         if (p == 0){
@@ -244,12 +260,12 @@ int CmdHandle(struct Command cmd, struct connClient* cc, char* msg) {
                             p = sendMsg(connfd, msg, strlen(msg));
                         } else
                         if (p == -ERRORREADFROMDISC){
-                            printf("Error when read from disk!\n");
+                            printf("RETR_thread: Error when read from disk!\n");
                             msg = "551 Error when read from disk!\r\n\0";
                             p = sendMsg(connfd, msg, strlen(msg));
                         } else
                         if (p == -ERRORDISCONN){
-                            printf("data connection Disconnect!\n");
+                            printf("RETR_thread: data connection Disconnect!\n");
                             msg = "426 Disconnect!\r\n\0";
                             p = sendMsg(connfd, msg, strlen(msg));
                         }
@@ -257,7 +273,7 @@ int CmdHandle(struct Command cmd, struct connClient* cc, char* msg) {
                 }
             } else
             {
-                printf("RETR parmas Error!\n");
+                printf("RETR_thread: RETR parmas Error!\n");
                 msg = "451 RETR parmas Error!\r\n\0";
                 p = sendMsg(connfd, msg, strlen(msg));
             }
@@ -276,7 +292,7 @@ int CmdHandle(struct Command cmd, struct connClient* cc, char* msg) {
                 strcpy(tmp, cmd.params[0]);
                 getfilename(tmp);
                 toabsPath(tmp, cc->curdir);
-                printf("abspath %s:\n", tmp);
+                printf("STOR_thread: abspath %s:\n", tmp);
 
                 char rootpath[512];
                 getcwd(rootpath, 512);
@@ -323,7 +339,7 @@ int CmdHandle(struct Command cmd, struct connClient* cc, char* msg) {
 
             } else
             {
-                printf("STOR parmas Error!\n");
+                printf("STOR_thread: STOR parmas Error!\n");
                 msg = "450 STOR parmas Error!\r\n\0";
                 p = sendMsg(connfd, msg, strlen(msg));
             }

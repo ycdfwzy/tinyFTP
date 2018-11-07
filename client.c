@@ -259,7 +259,6 @@ int cmd_STOR(struct Command* cmd, char* snd, char* rec, struct ClientUtils* cu) 
         //     printf("data connection Disconnect!\n");
         // }
         
-        sleep(1);
         dropOtherConn_Client(cu);
         do{
             p = waitMsg(cu->sockfd, rec, MAXBUFLEN);
