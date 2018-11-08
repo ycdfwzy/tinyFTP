@@ -17,12 +17,13 @@ public:
     explicit MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
 
-//public slots:
-//    void switch_log_state(bool islogin_);
-
+    ClientHandler* getClientHandler(){
+        return ch;
+    }
 private:
     Ui::MainWindow *ui;
     LoginWidget *lw;
+    ClientHandler *ch;
     bool isLogin;
 };
 

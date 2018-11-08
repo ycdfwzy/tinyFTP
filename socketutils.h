@@ -1,5 +1,9 @@
 #ifndef tinyFTP_socketuitls_H
 #define tinyFTP_socketuitls_H
+#ifdef __cplusplus
+extern "C"{
+#endif
+
 #include <sys/socket.h>
 #include <netinet/in.h>
 
@@ -17,8 +21,8 @@ struct ClientUtils;
 struct connClient{
 	char curdir[512];
 	char oldpath[512];
-	int connfd;
-	struct ServerUtils* dataSer;
+    int connfd;
+    struct ServerUtils* dataSer;
 	struct ClientUtils* dataCli;
 };
 
@@ -50,5 +54,9 @@ int getfisrtConn(struct ServerUtils*);
 int waitMsg(int connfd, char* msg, int MAXLEN);
 int waitData(int connfd, char* msg, int MAXLEN);
 int sendMsg(int connfd, char* msg, int len);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

@@ -1,3 +1,6 @@
+#ifdef __cplusplus
+extern "C"{
+#endif
 #include "datautils.h"
 #include "errorcode.h"
 
@@ -191,7 +194,7 @@ int conSer(char* IpPort, struct ClientUtils* datacli){
 }
 
 int conSer_Server(char* IpPort, struct connClient* cc){
-	cc->dataCli = malloc(sizeof(struct ClientUtils));
+    cc->dataCli = malloc(sizeof(struct ClientUtils));
 	struct ClientUtils* datacli = cc->dataCli;
 	initClientUtils(datacli);
 
@@ -199,7 +202,7 @@ int conSer_Server(char* IpPort, struct connClient* cc){
 }
 
 int conSer_Client(char* IpPort, struct ClientUtils* cu){
-	cu->dataCli = malloc(sizeof(struct ClientUtils));
+    cu->dataCli = malloc(sizeof(struct ClientUtils));
 	struct ClientUtils* datacli = cu->dataCli;
 	initClientUtils(datacli);
 
@@ -268,7 +271,7 @@ int crtSer(char* IpPort, struct ServerUtils* dataser, int mode){
 }
 
 int crtSer_Server(char* IpPort, struct connClient* cc){
-	cc->dataSer = malloc(sizeof(struct ServerUtils));
+    cc->dataSer = malloc(sizeof(struct ServerUtils));
 	struct ServerUtils* dataser = cc->dataSer;
 	initServerUtils(dataser);
 
@@ -276,7 +279,7 @@ int crtSer_Server(char* IpPort, struct connClient* cc){
 }
 
 int crtSer_Client(char* IpPort, struct ClientUtils* cu){
-	cu->dataSer = malloc(sizeof(struct ServerUtils));
+    cu->dataSer = malloc(sizeof(struct ServerUtils));
 	struct ServerUtils* dataser = cu->dataSer;
 	initServerUtils(dataser);
 
@@ -510,3 +513,6 @@ int recv_file(char* filename, int fd){
 	close(f);
 	return 0;
 }
+#ifdef __cplusplus
+}
+#endif

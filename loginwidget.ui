@@ -35,6 +35,9 @@
      <height>25</height>
     </rect>
    </property>
+   <property name="text">
+    <string>127.0.0.1</string>
+   </property>
   </widget>
   <widget class="QLabel" name="PortLbl">
    <property name="geometry">
@@ -58,6 +61,9 @@
      <height>25</height>
     </rect>
    </property>
+   <property name="text">
+    <string>6789</string>
+   </property>
   </widget>
   <widget class="QLabel" name="NameLbl">
    <property name="geometry">
@@ -80,6 +86,9 @@
      <width>321</width>
      <height>25</height>
     </rect>
+   </property>
+   <property name="text">
+    <string>anonymous</string>
    </property>
   </widget>
   <widget class="QLabel" name="PassLbl">

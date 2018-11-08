@@ -1,5 +1,9 @@
 #ifndef tinyFTP_fileserver_H
 #define tinyFTP_fileserver_H
+#ifdef __cplusplus
+extern "C"{
+#endif
+
 #include "socketutils.h"
 
 int indexofDDDS(const char* st);
@@ -20,5 +24,7 @@ int send_file(char* filename, int fd);
 int recv_file(char* filename, int fd);
 int send_list(char* param, int fd);
 int recv_list(int fd);
-
+#ifdef __cplusplus
+}
+#endif
 #endif

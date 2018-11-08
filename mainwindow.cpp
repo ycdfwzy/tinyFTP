@@ -6,6 +6,7 @@ MainWindow::MainWindow(QWidget *parent) :
     ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
+    this->ch = new ClientHandler();
     this->isLogin = false;
     this->lw = new LoginWidget(this);
     this->setCentralWidget(this->lw);

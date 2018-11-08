@@ -1,3 +1,6 @@
+#ifdef __cplusplus
+extern "C"{
+#endif
 #include "socketutils.h"
 #include "errorcode.h"
 #include <stdio.h>
@@ -186,3 +189,6 @@ int sendMsg(int connfd, char* msg, int len){
     // printf("write finished!\n");
     return 0;
 }
+#ifdef __cplusplus
+}
+#endif

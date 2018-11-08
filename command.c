@@ -1,3 +1,6 @@
+#ifdef __cplusplus
+extern "C"{
+#endif
 #include "command.h"
 #include "errorcode.h"
 #include "socketutils.h"
@@ -704,3 +707,6 @@ int CmdHandle(struct Command cmd, struct connClient* cc, char* msg) {
     }
     return 0;
 }
+#ifdef __cplusplus
+}
+#endif
