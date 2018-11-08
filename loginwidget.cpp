@@ -33,14 +33,14 @@ void LoginWidget::Login(){
     qDebug() << this->ui->PassEdt->text();
 
     ClientHandler* ch = this->mw->getClientHandler();
-    int p = ch->conncet_login(this->ui->IPEdt->text().toUtf8().data(),
-                              this->ui->PortEdt->text().toInt(),
-                              this->ui->NameEdt->text().toUtf8().data(),
-                              this->ui->PassEdt->text().toUtf8().data());
-    if (p == -ERRORLOGIN){
+    RetInfo p = ch->conncet_login(this->ui->IPEdt->text().toUtf8().data(),
+                                  this->ui->PortEdt->text().toInt(),
+                                  this->ui->NameEdt->text().toUtf8().data(),
+                                  this->ui->PassEdt->text().toUtf8().data());
+    if (p.ErrorCode == -ERRORLOGIN){
         QMessageBox::about(this, "Login Failed", "Wrong Username or Password!");
     } else
-    if (p < 0){
+    if (p.ErrorCode < 0){
         QMessageBox::about(this, "Connect Failed",
                            QString("Can't connect to ")+ui->IPEdt->text()+QString(":")+ui->PortEdt->text());
     } else

@@ -17,6 +17,9 @@ public:
     explicit MainWidget(QString ip, int port, QString name, MainWindow *mw_, QWidget *parent = nullptr);
     ~MainWidget();
 
+    QString GetPWD();
+    void setDirList();
+
 public slots:
     void Logout();
 

@@ -7,23 +7,26 @@
 #include <cstdio>
 #include <QDebug>
 
+char snd[MAXBUFLEN];
+char rec[MAXBUFLEN];
+
 ClientHandler::ClientHandler()
 {
-    this->cc = nullptr;
+    this->cu = nullptr;
 }
 
 ClientHandler::~ClientHandler(){
-    if (this->cc != nullptr){
-        delete this->cc;
-        this->cc = nullptr;
+    if (this->cu != nullptr){
+        delete this->cu;
+        this->cu = nullptr;
     }
 }
 
-int login(
-        struct ClientUtils* cc,
+RetInfo login(
+        struct ClientUtils* cu,
         char* username,
         char* password){
-    int sockfd = cc->sockfd;
+    int sockfd = cu->sockfd;
     int p, idx;
     char msg[MAXBUFLEN];
 
@@ -31,7 +34,7 @@ int login(
         p = waitMsg(sockfd, msg, MAXBUFLEN);
         if (p < 0) {    // error code!
             qDebug() << "waitMsg Error! " << -p;
-            return p;
+            return RetInfo(p);
         }
         idx = indexofDDDS(msg);
     } while (idx < 0);
@@ -39,7 +42,7 @@ int login(
     qDebug() << "From Server: " << QString(msg+idx+4);
     if (!startWith(msg+idx, "220 ")){
         qDebug() << "Login Failed: No 220 get!";
-        return -ERRORLOGIN;
+        return RetInfo(-ERRORLOGIN, QString(msg+idx+4));
     }
 
     do {
@@ -48,13 +51,13 @@ int login(
         p = sendMsg(sockfd, msg, len);
         if (p < 0) {
             qDebug() << "sendMsg Error! " << -p;
-            return p;
+            return RetInfo(p);
         }
 
         p = waitMsg(sockfd, msg, MAXBUFLEN);
         if (p < 0) {    // error code!
             qDebug() << "waitMsg Error! " << -p;
-            return p;
+            return RetInfo(p);
         }
         idx = indexofDDDS(msg);
     } while (idx < 0);
@@ -62,7 +65,7 @@ int login(
     qDebug() << "From Server: " << QString(msg+idx+4);
     if (!startWith(msg+idx, "331 ")){
         qDebug() << "Login Failed: No 331 get!";
-        return -ERRORLOGIN;
+        return RetInfo(-ERRORLOGIN, QString(msg+idx+4));
     }
 
     do {
@@ -71,13 +74,13 @@ int login(
         p = sendMsg(sockfd, msg, len);
         if (p < 0) {
             qDebug() << "snedMsg Error! " << -p;
-            return p;
+            return RetInfo(p);
         }
 
         p = waitMsg(sockfd, msg, MAXBUFLEN);
         if (p < 0) {    // error code!
             qDebug() << "waitMsg Error! " << -p;
-            return p;
+            return RetInfo(p);
         }
         idx = indexofDDDS(msg);
     } while (idx < 0);
@@ -85,68 +88,196 @@ int login(
     qDebug() << "From Server: " << QString(msg+idx+4);
     if (!startWith(msg+idx, "230 ")){
         qDebug() << "Login Failed: No 230 get!";
-        return -ERRORLOGIN;
+        return RetInfo(-ERRORLOGIN, QString(msg+idx+4));
     }
 
-    return NOERROR;
+    return RetInfo(NOERROR, QString(msg+idx+4));
 }
 
-int ClientHandler::conncet_login(
+RetInfo ClientHandler::conncet_login(
         char* ip,
         int port,
         char* username,
         char* password){
-    this->cc = new ClientUtils();
-    initClientUtils(this->cc);
+    this->cu = new ClientUtils();
+    initClientUtils(this->cu);
 
-    if ((this->cc->sockfd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) == -1) {
+    if ((this->cu->sockfd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) == -1) {
 //        printf("Error socket(): %s(%d)\nPlease", strerror(errno), errno);
-        return -ERRORSOCKET;
+        return RetInfo(-ERRORSOCKET);
     }
 
-    memset(&(this->cc->addr), 0, sizeof(this->cc->addr));
-    this->cc->addr.sin_family = AF_INET;
-    this->cc->addr.sin_port = htons(port);
-    if (inet_pton(AF_INET, ip, &(this->cc->addr.sin_addr)) <= 0) {
+    memset(&(this->cu->addr), 0, sizeof(this->cu->addr));
+    this->cu->addr.sin_family = AF_INET;
+    this->cu->addr.sin_port = htons(port);
+    if (inet_pton(AF_INET, ip, &(this->cu->addr.sin_addr)) <= 0) {
 //        printf("Error inet_pton(): %s(%d)\n", strerror(errno), errno);
-        return -ERRORINETPTON;
+        return RetInfo(-ERRORINETPTON);
     }
 
-    if (connect(this->cc->sockfd, (struct sockaddr*)&(this->cc->addr), sizeof(this->cc->addr)) < 0) {
+    if (connect(this->cu->sockfd, (struct sockaddr*)&(this->cu->addr), sizeof(this->cu->addr)) < 0) {
 //        printf("Error connect(): %s(%d)\n", strerror(errno), errno);
-        return -ERRORCONN;
+        return RetInfo(-ERRORCONN);
     }
 
-    qDebug() << this->cc->sockfd;
-    int p = login(this->cc, username, password);
-    if (p < 0)
-        return -ERRORLOGIN;
-    return p;
+    qDebug() << this->cu->sockfd;
+    RetInfo ret = login(this->cu, username, password);
+    if (ret.ErrorCode < 0)
+        return RetInfo(-ERRORLOGIN);
+    return ret;
 }
 
-int ClientHandler::quit(){
+QString getPath(QString path){
+    int len = path.length();
+    QString ret = "";
+    for (int i = 1; i < len; ++i){
+        if (path[i] == '"' && path[i-1] != '"')
+            break;
+        ret += path[i];
+    }
+    return ret;
+}
+
+RetInfo ClientHandler::quit(){
     int p, idx;
     char msg[MAXBUFLEN];
 
     sprintf(msg, "QUIT\r\n");
-    p = sendMsg(cc->sockfd, msg, strlen(msg));
+    p = sendMsg(cu->sockfd, msg, strlen(msg));
     if (p < 0){
         qDebug() << "sendMsg Error! " << -p;
-        return p;
+        return RetInfo(p);
     }
 
     do {
-        p = waitMsg(cc->sockfd, msg, MAXBUFLEN);
+        p = waitMsg(cu->sockfd, msg, MAXBUFLEN);
         if (p < 0) {    // error code!
             qDebug() << "waitMsg Error! " << -p;
-            return p;
+            return RetInfo(p);
         }
         idx = indexofDDDS(msg);
     } while (idx < 0);
 
     qDebug() << "From Server: " << QString(msg+idx+4);
     if (!startWith(msg+idx, "221 ")){
-        return -1;
+        return RetInfo(-1, QString(msg+idx+4));
     }
-    return NOERROR;
+    return RetInfo(NOERROR, QString(msg+idx+4));
+}
+
+RetInfo ClientHandler::pwd(){
+    int p, idx;
+    char msg[MAXBUFLEN];
+
+    sprintf(msg, "PWD\r\n");
+    p = sendMsg(cu->sockfd, msg, strlen(msg));
+    if (p < 0){
+        qDebug() << "sendMsg Error! " << -p;
+        return RetInfo(p);
+    }
+
+    do {
+        p = waitMsg(cu->sockfd, msg, MAXBUFLEN);
+        if (p < 0) {    // error code!
+            qDebug() << "waitMsg Error! " << -p;
+            return RetInfo(p);
+        }
+        idx = indexofDDDS(msg);
+    } while (idx < 0);
+
+    qDebug() << "From Server: " << QString(msg+idx+4);
+
+    if (!startWith(msg+idx, "257 ")){
+        return RetInfo(-1, QString(msg+idx+4));
+    }
+    return RetInfo(NOERROR, getPath(QString(msg+idx+4)));
+}
+
+RetInfo ClientHandler::pasv(){
+    int idx, p;
+
+    dropOtherConn_Client(cu);
+
+    sprintf(snd, "PASV\r\n");
+    p = sendMsg(cu->sockfd, snd, strlen(snd));
+    do{
+        p = waitMsg(cu->sockfd, rec, MAXBUFLEN);
+        if (p < 0) {    // error code!
+            qDebug() << "waitMsg Error! " << -p;
+            return RetInfo(p);
+        }
+        idx = indexofDDDS(rec);
+    } while (idx < 0);
+    qDebug() << "From server: " << QString(rec+idx+4);
+
+    if (startWith(rec+idx, "227 ")){
+        p = conSer_Client(rec+5, cu);
+        if (p < 0){
+            qDebug() << "connect data Server Error! " << -p;
+            return RetInfo(p, QString("connect data Server Error!"));
+        }
+
+        qDebug() << "Now you are in PASV mode" << endl << "Please input cmd STOR/RETR/LIST!";
+        return RetInfo(NOERROR, QString("Now you are in PASV mode\nPlease input cmd STOR/RETR/LIST!\n"));
+    }
+
+    return RetInfo(-1, QString(rec+idx));
+}
+
+RetInfo ClientHandler::list(){
+    int p, idx;
+    char mlist[MAXBUFLEN];
+
+    RetInfo ret = this->pasv();
+    if (ret.ErrorCode < 0){
+        return ret;
+    }
+
+    sprintf(snd, "LIST\r\n");
+    p = sendMsg(cu->sockfd, snd, strlen(snd));
+    if (p < 0) {    // error code!
+        qDebug() << "sendMsg Error!" << -p;
+        dropOtherConn_Client(cu);
+        return RetInfo(p);
+    }
+    do{
+        p = waitMsg(cu->sockfd, rec, MAXBUFLEN);
+        if (p < 0) {    // error code!
+            qDebug() << "waitMsg Error!" << -p;
+            dropOtherConn_Client(cu);
+            return RetInfo(p);
+        }
+        idx = indexofDDDS(rec);
+    } while (idx < 0);
+    qDebug() << "From server: " << QString(rec+idx+4);
+
+    if (startWith(rec+idx, "150 ")){
+        p = recv_list(cu->dataCli->sockfd, mlist);
+        dropOtherConn_Client(cu);
+
+        do{
+            p = waitMsg(cu->sockfd, rec, MAXBUFLEN);
+            if (p < 0) {    // error code!
+                qDebug() << "waitMsg Error! " << -p;
+                return RetInfo(p);
+            }
+            idx = indexofDDDS(rec);
+        } while (idx < 0);
+        qDebug() << "From server:  " << QString(rec+idx+4);
+
+        if (startWith(rec+idx, "226 ")){
+            qDebug() << "LIST Successfully!";
+            qDebug() << QString(mlist);
+            return RetInfo(NOERROR, QString("LIST Successfully!"));
+        } else
+        {
+            qDebug() << "some error happend when LIST!";
+            return RetInfo(-1, QString(rec+idx+4));
+        }
+    } else
+    {
+        qDebug() << "LIST Refused!";
+        dropOtherConn_Client(cu);
+        return RetInfo(-1, QString(rec+idx+4));
+    }
 }

@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>587</width>
-    <height>514</height>
+    <height>443</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -16,7 +16,7 @@
   <widget class="QLabel" name="ServerLbl">
    <property name="geometry">
     <rect>
-     <x>20</x>
+     <x>10</x>
      <y>10</y>
      <width>61</width>
      <height>31</height>
@@ -31,20 +31,10 @@
     <string>Server:</string>
    </property>
   </widget>
-  <widget class="QTableView" name="FileTbl">
-   <property name="geometry">
-    <rect>
-     <x>10</x>
-     <y>180</y>
-     <width>571</width>
-     <height>301</height>
-    </rect>
-   </property>
-  </widget>
   <widget class="QPushButton" name="DisconBtn">
    <property name="geometry">
     <rect>
-     <x>470</x>
+     <x>460</x>
      <y>20</y>
      <width>89</width>
      <height>25</height>
@@ -57,7 +47,7 @@
   <widget class="QLabel" name="UserLbl">
    <property name="geometry">
     <rect>
-     <x>20</x>
+     <x>10</x>
      <y>40</y>
      <width>101</width>
      <height>31</height>
@@ -75,7 +65,7 @@
   <widget class="QLineEdit" name="SerEdt">
    <property name="geometry">
     <rect>
-     <x>120</x>
+     <x>110</x>
      <y>10</y>
      <width>331</width>
      <height>25</height>
@@ -93,7 +83,7 @@
   <widget class="QLineEdit" name="NameEdt">
    <property name="geometry">
     <rect>
-     <x>120</x>
+     <x>110</x>
      <y>40</y>
      <width>331</width>
      <height>25</height>
@@ -107,6 +97,86 @@
    <property name="readOnly">
     <bool>true</bool>
    </property>
+  </widget>
+  <widget class="QLabel" name="LocLbl">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>90</y>
+     <width>81</width>
+     <height>17</height>
+    </rect>
+   </property>
+   <property name="font">
+    <font>
+     <pointsize>14</pointsize>
+    </font>
+   </property>
+   <property name="text">
+    <string>Location:</string>
+   </property>
+  </widget>
+  <widget class="QLineEdit" name="LocEdt">
+   <property name="geometry">
+    <rect>
+     <x>100</x>
+     <y>80</y>
+     <width>351</width>
+     <height>25</height>
+    </rect>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="GoBtn">
+   <property name="geometry">
+    <rect>
+     <x>460</x>
+     <y>80</y>
+     <width>31</width>
+     <height>25</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Go</string>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="DownBtn">
+   <property name="geometry">
+    <rect>
+     <x>500</x>
+     <y>80</y>
+     <width>31</width>
+     <height>25</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Dn</string>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="UpBtn">
+   <property name="geometry">
+    <rect>
+     <x>540</x>
+     <y>80</y>
+     <width>31</width>
+     <height>25</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Up</string>
+   </property>
+  </widget>
+  <widget class="QTableWidget" name="FileTbl">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>120</y>
+     <width>561</width>
+     <height>311</height>
+    </rect>
+   </property>
+   <attribute name="verticalHeaderVisible">
+    <bool>false</bool>
+   </attribute>
   </widget>
  </widget>
  <resources/>

@@ -151,18 +151,6 @@ int Msg2Command(char* msg, struct Command* cmd) {
     return 0;
 }
 
-void toabsPath(char* oripath, char* curdir){
-    if (strlen(oripath) > 0 && oripath[0] == '/')
-        return;
-    char* tmp = malloc(sizeof(char)*8192);
-    strcpy(tmp, oripath);
-    if (curdir[strlen(curdir)-1]=='/')
-        sprintf(oripath, "%s%s", curdir, tmp);
-    else
-        sprintf(oripath, "%s/%s", curdir, tmp);
-    free(tmp);
-}
-
 // struct CmdHandleInfo{
 //     struct Command cmd;
 //     struct connClient* cc;

@@ -14,6 +14,7 @@ int is_directory(const char* path);
 int exist(const char* path);
 int getFilesize(const char* path);
 void getfilename(char* path);
+void toabsPath(char* oripath, char* curdir);
 int crtSer_Server(char* IpPort, struct connClient* cc);
 int crtSer_Client(char* IpPort, struct ClientUtils* cu);
 int waitConn(struct ServerUtils* su);
@@ -23,7 +24,7 @@ int conSer_Client(char* IpPort, struct ClientUtils* cu);
 int send_file(char* filename, int fd);
 int recv_file(char* filename, int fd);
 int send_list(char* param, int fd);
-int recv_list(int fd);
+int recv_list(int fd, char* filelist);
 #ifdef __cplusplus
 }
 #endif

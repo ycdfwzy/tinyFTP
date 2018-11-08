@@ -382,10 +382,10 @@ int cmd_LIST(char* snd, char* rec, struct ClientUtils* cu) {
 
     if (startWith(rec+idx, "150 ")){
         if (cu->dataSer != NULL) {
-            p = recv_list(cu->dataSer->conn[0].connfd);
+            p = recv_list(cu->dataSer->conn[0].connfd, NULL);
         } else
         {
-            p = recv_list(cu->dataCli->sockfd);
+            p = recv_list(cu->dataCli->sockfd, NULL);
         }
 
         dropOtherConn_Client(cu);
