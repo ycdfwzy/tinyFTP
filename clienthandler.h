@@ -23,6 +23,7 @@ public:
     ~ClientHandler();
 
     int conncet_login(char* ip, int port, char* username, char* password);
+    int quit();
 
     struct ClientUtils* cc;
 };

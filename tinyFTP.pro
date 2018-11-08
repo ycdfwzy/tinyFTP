@@ -32,7 +32,8 @@ SOURCES += \
     socketutils.c \
     datautils.c \
     constants.c \
-    command.c
+    command.c \
+    mainwidget.cpp
 
 HEADERS += \
         mainwindow.h \
@@ -43,11 +44,13 @@ HEADERS += \
     mainwindow.h \
     socketutils.h \
     loginwidget.h \
-    clienthandler.h
+    clienthandler.h \
+    mainwidget.h
 
 FORMS += \
         mainwindow.ui \
-    loginwidget.ui
+    loginwidget.ui \
+    mainwidget.ui
 
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/bin

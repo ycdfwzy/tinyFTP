@@ -4,6 +4,7 @@
 #include <QMainWindow>
 #include "loginwidget.h"
 #include "clienthandler.h"
+#include "mainwidget.h"
 
 namespace Ui {
 class MainWindow;
@@ -17,12 +18,18 @@ public:
     explicit MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
 
-    ClientHandler* getClientHandler(){
-        return ch;
-    }
+    ClientHandler* getClientHandler(){ return ch;}
+
+signals:
+    void SIGLoginOK(QString, int, QString);
+    void SIGLogoutOK();
+
+public slots:
+    void LoginOK(QString, int, QString);
+    void LogoutOK();
 private:
     Ui::MainWindow *ui;
-    LoginWidget *lw;
+    QWidget *qw;
     ClientHandler *ch;
     bool isLogin;
 };

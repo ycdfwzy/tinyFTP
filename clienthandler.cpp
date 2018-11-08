@@ -123,3 +123,30 @@ int ClientHandler::conncet_login(
         return -ERRORLOGIN;
     return p;
 }
+
+int ClientHandler::quit(){
+    int p, idx;
+    char msg[MAXBUFLEN];
+
+    sprintf(msg, "QUIT\r\n");
+    p = sendMsg(cc->sockfd, msg, strlen(msg));
+    if (p < 0){
+        qDebug() << "sendMsg Error! " << -p;
+        return p;
+    }
+
+    do {
+        p = waitMsg(cc->sockfd, msg, MAXBUFLEN);
+        if (p < 0) {    // error code!
+            qDebug() << "waitMsg Error! " << -p;
+            return p;
+        }
+        idx = indexofDDDS(msg);
+    } while (idx < 0);
+
+    qDebug() << "From Server: " << QString(msg+idx+4);
+    if (!startWith(msg+idx, "221 ")){
+        return -1;
+    }
+    return NOERROR;
+}

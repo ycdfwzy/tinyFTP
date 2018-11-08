@@ -15,8 +15,8 @@ LoginWidget::LoginWidget(MainWindow* mw_, QWidget *parent) :
     ui->setupUi(this);
     ui->PortEdt->setValidator(new QIntValidator(0, 65535));
     ui->PassEdt->setEchoMode(QLineEdit::Password);
-    QRegExp rx("^((2[0-4]\\d|25[0-5]|[01]?\\d\\d?)\\.){3}(2[0-4]\\d|25[0-5]|[01]?\\d\\d?)$");
-    ui->IPEdt->setValidator(new QRegExpValidator(rx, this));
+//    QRegExp rx("^((2[0-4]\\d|25[0-5]|[01]?\\d\\d?)\\.){3}(2[0-4]\\d|25[0-5]|[01]?\\d\\d?)$");
+//    ui->IPEdt->setValidator(new QRegExpValidator(rx, this));
 
     connect(ui->Btn, SIGNAL(clicked()), this, SLOT(Login()));
 }
@@ -45,6 +45,8 @@ void LoginWidget::Login(){
                            QString("Can't connect to ")+ui->IPEdt->text()+QString(":")+ui->PortEdt->text());
     } else
     {
-
+        emit mw->SIGLoginOK(this->ui->IPEdt->text(),
+                            this->ui->PortEdt->text().toInt(),
+                            this->ui->NameEdt->text());
     }
 }
