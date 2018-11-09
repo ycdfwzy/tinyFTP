@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>587</width>
-    <height>443</height>
+    <height>525</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -171,8 +171,11 @@
      <x>10</x>
      <y>120</y>
      <width>561</width>
-     <height>311</height>
+     <height>391</height>
     </rect>
+   </property>
+   <property name="showGrid">
+    <bool>false</bool>
    </property>
    <attribute name="verticalHeaderVisible">
     <bool>false</bool>

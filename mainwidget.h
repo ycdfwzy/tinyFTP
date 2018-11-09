@@ -22,6 +22,7 @@ public:
 
 public slots:
     void Logout();
+    void DoCWD();
 
 private:
     Ui::MainWidget *ui;

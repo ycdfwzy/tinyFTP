@@ -190,7 +190,8 @@ RetInfo ClientHandler::pwd(){
     if (!startWith(msg+idx, "257 ")){
         return RetInfo(-1, QString(msg+idx+4));
     }
-    return RetInfo(NOERROR, getPath(QString(msg+idx+4)));
+    curpath = getPath(QString(msg+idx+4));
+    return RetInfo(NOERROR, curpath);
 }
 
 RetInfo ClientHandler::pasv(){
@@ -224,6 +225,44 @@ RetInfo ClientHandler::pasv(){
     return RetInfo(-1, QString(rec+idx));
 }
 
+int getContent(const QString& mlist, int x){
+    int ret = 0;
+    while (x+ret+1 < mlist.length()){
+        if (mlist[x+ret] == '"' && mlist[x+ret+1] != '"')
+            return ret;
+        ret++;
+    }
+    return mlist.length();
+}
+
+void ClientHandler::extract_fileList(const QString& mlist){
+    int idx = 0;
+    FileInfo fileInfo;
+    fileList.clear();
+    while ((idx = mlist.indexOf("name: \"", idx)) >= 0){
+        int l = getContent(mlist, idx+7);
+        fileInfo.name = mlist.mid(idx+7, l);
+        idx += 7+l;
+
+        idx = mlist.indexOf("type: \"", idx);
+        l = getContent(mlist, idx+7);
+        fileInfo.type = mlist.mid(idx+7, l);
+        idx += 7+l;
+
+        idx = mlist.indexOf("size: \"", idx);
+        l = getContent(mlist, idx+7);
+        fileInfo.size = mlist.mid(idx+7, l).toLongLong();
+        idx += 7+l;
+
+        idx = mlist.indexOf("last modification: \"", idx);
+        l = getContent(mlist, idx+20);
+        fileInfo.mtime = mlist.mid(idx+20, l);
+        idx += 20+l;
+
+        fileList.append(fileInfo);
+    }
+}
+
 RetInfo ClientHandler::list(){
     int p, idx;
     char mlist[MAXBUFLEN];
@@ -252,7 +291,9 @@ RetInfo ClientHandler::list(){
     qDebug() << "From server: " << QString(rec+idx+4);
 
     if (startWith(rec+idx, "150 ")){
+        qDebug() << "Before recv_list";
         p = recv_list(cu->dataCli->sockfd, mlist);
+        qDebug() << "After recv_list";
         dropOtherConn_Client(cu);
 
         do{
@@ -267,7 +308,7 @@ RetInfo ClientHandler::list(){
 
         if (startWith(rec+idx, "226 ")){
             qDebug() << "LIST Successfully!";
-            qDebug() << QString(mlist);
+            extract_fileList(QString(mlist));
             return RetInfo(NOERROR, QString("LIST Successfully!"));
         } else
         {
@@ -280,4 +321,34 @@ RetInfo ClientHandler::list(){
         dropOtherConn_Client(cu);
         return RetInfo(-1, QString(rec+idx+4));
     }
+}
+
+RetInfo ClientHandler::cwd(const QString& path){
+    int p, idx;
+
+    sprintf(snd, "CWD %s\r\n", path.toUtf8().data());
+    p = sendMsg(cu->sockfd, snd, strlen(snd));
+    if (p < 0) {    // error code!
+        qDebug() << "sendMsg Error!" << -p;
+        dropOtherConn_Client(cu);
+        return RetInfo(p);
+    }
+
+    do{
+        p = waitMsg(cu->sockfd, rec, MAXBUFLEN);
+        if (p < 0) {    // error code!
+            qDebug() << "waitMsg Error!" << -p;
+            dropOtherConn_Client(cu);
+            return RetInfo(p);
+        }
+        idx = indexofDDDS(rec);
+    } while (idx < 0);
+
+    qDebug() << "From server: " << QString(rec+idx+4);
+    if (startWith(rec+idx, "250 ")){
+        curpath = path;
+        return RetInfo(NOERROR, QString(rec+idx+4));
+    }
+
+    return RetInfo(-1, QString(rec+idx+4));
 }

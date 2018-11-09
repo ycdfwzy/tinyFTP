@@ -16,6 +16,7 @@
 #include "datautils.h"
 #include "socketutils.h"
 #include <QString>
+#include <QVector>
 
 struct RetInfo{
     int ErrorCode;
@@ -38,8 +39,23 @@ public:
     RetInfo pwd();
     RetInfo pasv();
     RetInfo list();
+    RetInfo cwd(const QString&);
 
     struct ClientUtils* cu;
+    struct FileInfo{
+        QString name;
+        QString type;
+        long long size;
+        QString mtime;
+    };
+    QVector<FileInfo> fileList;
+
+    QString rootpath;
+    QString curpath;
+
+    private:
+        void extract_fileList(const QString&);
+
 };
 
 #endif // CLIENTHANDLER_H

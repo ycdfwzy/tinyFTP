@@ -477,6 +477,9 @@ int send_list(char* param, int fd) {
 int recv_list(int fd, char* filelist) {
 	int p;
 	char msg[MAXBUFLEN];
+    if (filelist != NULL){
+        sprintf(filelist, "");
+    }
 	do{
         p = waitData(fd, msg, MAXBUFLEN);
         if (p < 0) {    // error code!
@@ -486,7 +489,6 @@ int recv_list(int fd, char* filelist) {
         if (filelist != NULL){
             sprintf(filelist, "%s%s", filelist, msg);
         }
-//        printf("%s", msg);
     } while (p > 0);//while (endWith(msg, "Complete!"));//while (strlen(msg) == 0);
     return 0;
 }
