@@ -23,6 +23,7 @@ enum ERRORC{
     ERRORREADFROMDISC,
     ERRORDISCONN,
     ERROREXT,
+    ERROROTHERS,
 };
 
 #ifdef __cplusplus

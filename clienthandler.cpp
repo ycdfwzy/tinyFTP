@@ -160,7 +160,7 @@ RetInfo ClientHandler::quit(){
 
     qDebug() << "From Server: " << QString(msg+idx+4);
     if (!startWith(msg+idx, "221 ")){
-        return RetInfo(-1, QString(msg+idx+4));
+        return RetInfo(-ERROROTHERS, QString(msg+idx+4));
     }
     return RetInfo(NOERROR, QString(msg+idx+4));
 }
@@ -188,7 +188,7 @@ RetInfo ClientHandler::pwd(){
     qDebug() << "From Server: " << QString(msg+idx+4);
 
     if (!startWith(msg+idx, "257 ")){
-        return RetInfo(-1, QString(msg+idx+4));
+        return RetInfo(-ERROROTHERS, QString(msg+idx+4));
     }
     curpath = getPath(QString(msg+idx+4));
     return RetInfo(NOERROR, curpath);
@@ -222,7 +222,7 @@ RetInfo ClientHandler::pasv(){
         return RetInfo(NOERROR, QString("Now you are in PASV mode\nPlease input cmd STOR/RETR/LIST!\n"));
     }
 
-    return RetInfo(-1, QString(rec+idx));
+    return RetInfo(-ERROROTHERS, QString(rec+idx));
 }
 
 int getContent(const QString& mlist, int x){
@@ -313,13 +313,13 @@ RetInfo ClientHandler::list(){
         } else
         {
             qDebug() << "some error happend when LIST!";
-            return RetInfo(-1, QString(rec+idx+4));
+            return RetInfo(-ERROROTHERS, QString(rec+idx+4));
         }
     } else
     {
         qDebug() << "LIST Refused!";
         dropOtherConn_Client(cu);
-        return RetInfo(-1, QString(rec+idx+4));
+        return RetInfo(-ERROROTHERS, QString(rec+idx+4));
     }
 }
 
@@ -350,5 +350,57 @@ RetInfo ClientHandler::cwd(const QString& path){
         return RetInfo(NOERROR, QString(rec+idx+4));
     }
 
-    return RetInfo(-1, QString(rec+idx+4));
+    return RetInfo(-ERROROTHERS, QString(rec+idx+4));
+}
+
+RetInfo ClientHandler::rename(const QString& oldname, const QString& newname){
+    int p, idx;
+
+    sprintf(snd, "RNFR %s\r\n", oldname.toUtf8().data());
+    p = sendMsg(cu->sockfd, snd, strlen(snd));
+    if (p < 0) {    // error code!
+        qDebug() << "sendMsg Error!" << -p;
+        dropOtherConn_Client(cu);
+        return RetInfo(p);
+    }
+
+    do{
+        p = waitMsg(cu->sockfd, rec, MAXBUFLEN);
+        if (p < 0) {    // error code!
+            qDebug() << "waitMsg Error!" << -p;
+            dropOtherConn_Client(cu);
+            return RetInfo(p);
+        }
+        idx = indexofDDDS(rec);
+    } while (idx < 0);
+    qDebug() << "From server: " << QString(rec+idx+4);
+
+    if (!startWith(rec+idx, "350 ")){
+        return RetInfo(-ERROROTHERS, QString(rec+idx+4));
+    }
+
+    sprintf(snd, "RNTO %s\r\n", newname.toUtf8().data());
+    p = sendMsg(cu->sockfd, snd, strlen(snd));
+    if (p < 0) {    // error code!
+        qDebug() << "sendMsg Error!" << -p;
+        dropOtherConn_Client(cu);
+        return RetInfo(p);
+    }
+
+    do{
+        p = waitMsg(cu->sockfd, rec, MAXBUFLEN);
+        if (p < 0) {    // error code!
+            qDebug() << "waitMsg Error!" << -p;
+            dropOtherConn_Client(cu);
+            return RetInfo(p);
+        }
+        idx = indexofDDDS(rec);
+    } while (idx < 0);
+    qDebug() << "From server: " << QString(rec+idx+4);
+
+    if (!startWith(rec+idx, "250 ")){
+        return RetInfo(-ERROROTHERS, QString(rec+idx+4));
+    }
+
+    return RetInfo(NOERROR, QString(rec+idx+4));
 }

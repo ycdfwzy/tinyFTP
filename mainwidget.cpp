@@ -4,6 +4,8 @@
 #include <QMessageBox>
 #include <QStringList>
 #include <QDebug>
+#include <QDialog>
+#include <QInputDialog>
 
 MainWidget::MainWidget(
         QString ip, int port, QString name,
@@ -24,11 +26,48 @@ MainWidget::MainWidget(
     connect(ui->GoBtn, SIGNAL(clicked()),
             this, SLOT(DoCWD()));
     setDirList();
+
+    menu.popMenu = nullptr;
+    ui->FileTbl->setContextMenuPolicy(Qt::CustomContextMenu);
+    connect(ui->FileTbl, SIGNAL(customContextMenuRequested(QPoint)),
+            this, SLOT(show_Menu(QPoint)));
 }
 
 MainWidget::~MainWidget()
 {
     delete ui;
+}
+
+void MainWidget::show_Menu(QPoint pos){
+    qDebug() << "show_Menu";
+    QModelIndex index = ui->FileTbl->indexAt(pos);
+    QTableWidgetItem *item = ui->FileTbl->item(index.row(), 0);
+    if (menu.popMenu != nullptr){
+        delete menu.popMenu;
+        menu.popMenu = nullptr;
+    }
+
+    if (item != nullptr){
+        menu.name = item->text();
+        menu.popMenu = new QMenu(ui->FileTbl);
+        menu.download = new QAction("Download", menu.popMenu);
+        menu.refresh = new QAction("Refresh", menu.popMenu);
+        menu.rename = new QAction("Rename", menu.popMenu);
+        menu.popMenu->addAction(menu.download);
+        menu.popMenu->addAction(menu.refresh);
+        menu.popMenu->addAction(menu.rename);
+
+        connect(menu.rename, SIGNAL(triggered()),
+                this, SLOT(Rename()));
+    } else
+    {
+        menu.popMenu = new QMenu(ui->FileTbl);
+        menu.upload = new QAction("Upload", menu.popMenu);
+        menu.refresh = new QAction("Refresh", menu.popMenu);
+        menu.popMenu->addAction(menu.upload);
+        menu.popMenu->addAction(menu.refresh);
+    }
+    menu.popMenu->exec(QCursor::pos());
 }
 
 void MainWidget::Logout(){
@@ -47,8 +86,14 @@ void MainWidget::Logout(){
     }
 }
 
+void MainWidget::removeFileList(){
+    int t = ui->FileTbl->rowCount();
+    while (t--)
+        ui->FileTbl->removeRow(0);
+}
+
 void MainWidget::setDirList(){
-    ui->FileTbl->clear();
+    removeFileList();
     ui->FileTbl->setColumnCount(4);
     ui->FileTbl->horizontalHeader()->setStretchLastSection(true);
     ui->FileTbl->setHorizontalHeaderLabels(QStringList() << "Name" << "Type" << "Size" << "Last Modification");
@@ -122,5 +167,29 @@ void MainWidget::DoCWD(){
     } else
     {
         setDirList();
+    }
+}
+
+void MainWidget::Rename(){
+    QInputDialog input(this);
+    input.setWindowTitle("File Name");
+    input.setLabelText("Input filename:");
+    input.setInputMode(QInputDialog::TextInput);
+    input.setOkButtonText("Rename");
+    if (input.exec() == QInputDialog::Accepted){
+        qDebug() << menu.name << " " << input.textValue();
+        ClientHandler *ch = mw->getClientHandler();
+        RetInfo p = ch->rename(menu.name, input.textValue());
+
+        if (p.ErrorCode == -ERRORWRITE || p.ErrorCode == -ERRORREAD){
+            QMessageBox::about(this, "Error", "Disconnect unexpectedly!");
+            emit mw->SIGLogoutOK();
+        } else
+        if (p.ErrorCode < 0){
+            QMessageBox::about(this, "Error", p.info);
+            ui->LocEdt->setText(ch->curpath);
+        } else {
+            setDirList();
+        }
     }
 }
