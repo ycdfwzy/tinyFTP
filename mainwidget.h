@@ -25,6 +25,9 @@ public slots:
     void Logout();
     void DoCWD();
     void Rename();
+    void Refresh();
+    void NewDir();
+    void Remove();
     void show_Menu(QPoint);
 
 private:
@@ -36,7 +39,10 @@ private:
         QAction *upload;
         QAction *refresh;
         QAction *rename;
+        QAction *remove;
+        QAction *newfloder;
         QString name;
+        QString type;
     } menu;
     void removeFileList();
 };

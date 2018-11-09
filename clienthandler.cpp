@@ -404,3 +404,67 @@ RetInfo ClientHandler::rename(const QString& oldname, const QString& newname){
 
     return RetInfo(NOERROR, QString(rec+idx+4));
 }
+
+RetInfo ClientHandler::mkd(const QString& filename){
+    int p, idx;
+
+    sprintf(snd, "MKD %s\r\n", filename.toUtf8().data());
+    p = sendMsg(cu->sockfd, snd, strlen(snd));
+    if (p < 0) {    // error code!
+        qDebug() << "sendMsg Error!" << -p;
+        dropOtherConn_Client(cu);
+        return RetInfo(p);
+    }
+
+    do{
+        p = waitMsg(cu->sockfd, rec, MAXBUFLEN);
+        if (p < 0) {    // error code!
+            qDebug() << "waitMsg Error!" << -p;
+            dropOtherConn_Client(cu);
+            return RetInfo(p);
+        }
+        idx = indexofDDDS(rec);
+    } while (idx < 0);
+    qDebug() << "From server: " << QString(rec+idx+4);
+
+    if (!startWith(rec+idx, "250 ")){
+        return RetInfo(-ERROROTHERS, QString(rec+idx+4));
+    }
+
+    return RetInfo(NOERROR, QString(rec+idx+4));
+}
+
+RetInfo ClientHandler::remove(const QString& name, const QString& type){
+    int p, idx;
+
+    if (type == "directory"){
+        sprintf(snd, "RMD %s\r\n", name.toUtf8().data());
+    } else
+    {
+        sprintf(snd, "DELE %s\r\n", name.toUtf8().data());
+    }
+
+    p = sendMsg(cu->sockfd, snd, strlen(snd));
+    if (p < 0) {    // error code!
+        qDebug() << "sendMsg Error!" << -p;
+        dropOtherConn_Client(cu);
+        return RetInfo(p);
+    }
+
+    do{
+        p = waitMsg(cu->sockfd, rec, MAXBUFLEN);
+        if (p < 0) {    // error code!
+            qDebug() << "waitMsg Error!" << -p;
+            dropOtherConn_Client(cu);
+            return RetInfo(p);
+        }
+        idx = indexofDDDS(rec);
+    } while (idx < 0);
+    qDebug() << "From server: " << QString(rec+idx+4);
+
+    if (!startWith(rec+idx, "250 ")){
+        return RetInfo(-ERROROTHERS, QString(rec+idx+4));
+    }
+
+    return RetInfo(NOERROR, QString(rec+idx+4));
+}

@@ -125,6 +125,42 @@ int endWith(const char* s, const char* t){
 	return 1;
 }
 
+int rm_dir(char* path){
+	char tmp[MAXBUFLEN];
+    struct dirent *dir;
+    DIR *dp;
+    if ((dp = opendir(path)) == NULL){
+    	return -1;
+    }
+    while ((dir = readdir(dp)) != NULL){
+    	if (strcmp(dir->d_name, ".")==0 || strcmp(dir->d_name, "..")==0){
+    		continue;
+    	}
+    	if (path[strlen(path)-1] == '/')
+    		sprintf(tmp, "%s%s", path, dir->d_name);
+    	else
+    		sprintf(tmp, "%s/%s", path, dir->d_name);
+
+    	if (dir->d_type == DT_DIR){
+    		if (rm_dir(tmp) < 0){
+    			closedir(dp);
+    			return -1;
+    		}
+    	} else
+    	{
+    		if (unlink(tmp) < 0){
+    			closedir(dp);
+    			return -1;
+    		}
+    	}
+    }
+    closedir(dp);
+    if (rmdir(path) < 0){
+    	return -1;
+    }
+    return 0;
+}
+
 int extract(char* IpPort, char* ipaddr, int* port){
 	int h[7];
 	// int cnt = 0;

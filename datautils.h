@@ -15,6 +15,7 @@ int exist(const char* path);
 int getFilesize(const char* path);
 void getfilename(char* path);
 void toabsPath(char* oripath, char* curdir);
+int rm_dir(char* path);
 int crtSer_Server(char* IpPort, struct connClient* cc);
 int crtSer_Client(char* IpPort, struct ClientUtils* cu);
 int waitConn(struct ServerUtils* su);

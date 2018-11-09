@@ -40,7 +40,11 @@ public:
     RetInfo pasv();
     RetInfo list();
     RetInfo cwd(const QString&);
-    RetInfo rename(const QString&, const QString&);
+    RetInfo rename(const QString&,
+                   const QString&);
+    RetInfo mkd(const QString&);
+    RetInfo remove(const QString&,
+                   const QString&);
 
     struct ClientUtils* cu;
     struct FileInfo{

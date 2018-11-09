@@ -151,40 +151,6 @@ int Msg2Command(char* msg, struct Command* cmd) {
     return 0;
 }
 
-// struct CmdHandleInfo{
-//     struct Command cmd;
-//     struct connClient* cc;
-//     char* msg;
-// };
-
-// void* RETR_thread(void* arg){
-//     struct CmdHandleInfo* argp = (struct CmdHandleInfo*) arg;
-//     struct Command cmd = argp->cmd;
-//     struct connClient* cc = argp->cc;
-//     char* msg = argp->msg;
-//     int connfd = cc->connfd;
-//     char tmp[MAXBUFLEN];
-//     int p;
-
-
-
-//     return NULL;
-// }
-
-// void* STOR_thread(void* arg){
-//     struct CmdHandleInfo* argp = (struct CmdHandleInfo*) arg;
-//     struct Command cmd = argp->cmd;
-//     struct connClient* cc = argp->cc;
-//     char* msg = argp->msg;
-//     int connfd = cc->connfd;
-//     char tmp[MAXBUFLEN];
-//     int p;
-
-
-
-//     return NULL;
-// }
-
 int CmdHandle(struct Command cmd, struct connClient* cc, char* msg) {
     int p;
     int connfd = cc->connfd;
@@ -600,7 +566,7 @@ int CmdHandle(struct Command cmd, struct connClient* cc, char* msg) {
                 sprintf(msg, "550 %s: You have no Permission!\r\n", tmp);
                 p = sendMsg(connfd, msg, strlen(msg));
             } else
-            if (rmdir(tmp) == 0){
+            if (rm_dir(tmp) == 0){
                 msg = "250 RMD success!\r\n\0";
                 p = sendMsg(connfd, msg, strlen(msg));
             } else
@@ -611,6 +577,32 @@ int CmdHandle(struct Command cmd, struct connClient* cc, char* msg) {
         } else
         {
             msg = "550 RMD Failed!\r\n\0";
+            p = sendMsg(connfd, msg, strlen(msg));
+        }
+    } else
+
+    if (strcmp(cmd.cmdName, "DELE") == 0) {
+        if (cmd.num_params == 1){
+            strcpy(tmp, cmd.params[0]);
+            toabsPath(tmp, cc->curdir);
+
+            char rootpath[512];
+            getcwd(rootpath, 512);
+            if (!startWith(tmp, rootpath)){ // permission denied!
+                sprintf(msg, "550 %s: You have no Permission!\r\n", tmp);
+                p = sendMsg(connfd, msg, strlen(msg));
+            } else
+            if (unlink(tmp) == 0){
+                msg = "250 DELE success!\r\n\0";
+                p = sendMsg(connfd, msg, strlen(msg));
+            } else
+            {
+                msg = "550 DELE Failed!\r\n\0";
+                p = sendMsg(connfd, msg, strlen(msg));
+            }
+        } else
+        {
+            msg = "550 DELE Failed!\r\n\0";
             p = sendMsg(connfd, msg, strlen(msg));
         }
     } else

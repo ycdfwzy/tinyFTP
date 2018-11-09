@@ -21,7 +21,7 @@ MainWidget::MainWidget(
             this, SLOT(Logout()));
     ui->LocEdt->setText(GetPWD());
     mw->getClientHandler()->rootpath = ui->LocEdt->text();
-    connect(ui->LocEdt, SIGNAL(editingFinished()),
+    connect(ui->LocEdt, SIGNAL(returnPressed()),
             this, SLOT(DoCWD()));
     connect(ui->GoBtn, SIGNAL(clicked()),
             this, SLOT(DoCWD()));
@@ -49,23 +49,37 @@ void MainWidget::show_Menu(QPoint pos){
 
     if (item != nullptr){
         menu.name = item->text();
+        menu.type = ui->FileTbl->item(index.row(), 1)->text();
         menu.popMenu = new QMenu(ui->FileTbl);
         menu.download = new QAction("Download", menu.popMenu);
         menu.refresh = new QAction("Refresh", menu.popMenu);
         menu.rename = new QAction("Rename", menu.popMenu);
+        menu.remove = new QAction("Delete", menu.popMenu);
         menu.popMenu->addAction(menu.download);
         menu.popMenu->addAction(menu.refresh);
         menu.popMenu->addAction(menu.rename);
+        menu.popMenu->addAction(menu.remove);
 
         connect(menu.rename, SIGNAL(triggered()),
                 this, SLOT(Rename()));
+        connect(menu.refresh, SIGNAL(triggered()),
+                this, SLOT(Refresh()));
+        connect(menu.remove, SIGNAL(triggered()),
+                this, SLOT(Remove()));
     } else
     {
         menu.popMenu = new QMenu(ui->FileTbl);
         menu.upload = new QAction("Upload", menu.popMenu);
         menu.refresh = new QAction("Refresh", menu.popMenu);
+        menu.newfloder = new QAction("New Floder", menu.popMenu);
         menu.popMenu->addAction(menu.upload);
         menu.popMenu->addAction(menu.refresh);
+        menu.popMenu->addAction(menu.newfloder);
+
+        connect(menu.refresh, SIGNAL(triggered()),
+                this, SLOT(Refresh()));
+        connect(menu.newfloder, SIGNAL(triggered()),
+                this, SLOT(NewDir()));
     }
     menu.popMenu->exec(QCursor::pos());
 }
@@ -115,6 +129,7 @@ void MainWidget::setDirList(){
 
             QTableWidgetItem *item0 = new QTableWidgetItem();
             item0->setText(ch->fileList[i].name);
+            item0->setFlags(item0->flags() & (~Qt::ItemIsEditable));
             ui->FileTbl->setItem(0, 0, item0);
 
             QTableWidgetItem *item1 = new QTableWidgetItem();
@@ -177,7 +192,7 @@ void MainWidget::Rename(){
     input.setInputMode(QInputDialog::TextInput);
     input.setOkButtonText("Rename");
     if (input.exec() == QInputDialog::Accepted){
-        qDebug() << menu.name << " " << input.textValue();
+//        qDebug() << menu.name << " " << input.textValue();
         ClientHandler *ch = mw->getClientHandler();
         RetInfo p = ch->rename(menu.name, input.textValue());
 
@@ -190,6 +205,58 @@ void MainWidget::Rename(){
             ui->LocEdt->setText(ch->curpath);
         } else {
             setDirList();
+        }
+    }
+}
+
+void MainWidget::Refresh(){
+    DoCWD();
+}
+
+void MainWidget::NewDir(){
+    QInputDialog input(this);
+    input.setWindowTitle("New Floder");
+    input.setLabelText("Floder name:");
+    input.setInputMode(QInputDialog::TextInput);
+    input.setOkButtonText("Create");
+    if (input.exec() == QInputDialog::Accepted){
+        ClientHandler *ch = mw->getClientHandler();
+        RetInfo p = ch->mkd(input.textValue());
+
+        if (p.ErrorCode == -ERRORWRITE || p.ErrorCode == -ERRORREAD){
+            QMessageBox::about(this, "Error", "Disconnect unexpectedly!");
+            emit mw->SIGLogoutOK();
+        } else
+        if (p.ErrorCode < 0){
+            QMessageBox::about(this, "Error", p.info);
+            ui->LocEdt->setText(ch->curpath);
+        } else {
+            Refresh();
+        }
+    }
+}
+
+void MainWidget::Remove(){
+    QMessageBox msg(this);
+    msg.setWindowTitle("Warning");
+    msg.setText(QString("Are you sure to DELETE ")+menu.type);
+    msg.setIcon(QMessageBox::Warning);
+    msg.setStandardButtons(QMessageBox::Cancel | QMessageBox::Ok);
+
+    if (msg.exec() == QMessageBox::Ok){
+        qDebug() << "Ok";
+
+        ClientHandler *ch = mw->getClientHandler();
+        RetInfo p = ch->remove(menu.name, menu.type);
+        if (p.ErrorCode == -ERRORWRITE || p.ErrorCode == -ERRORREAD){
+            QMessageBox::about(this, "Error", "Disconnect unexpectedly!");
+            emit mw->SIGLogoutOK();
+        } else
+        if (p.ErrorCode < 0){
+            QMessageBox::about(this, "Error", p.info);
+            ui->LocEdt->setText(ch->curpath);
+        } else {
+            Refresh();
         }
     }
 }
