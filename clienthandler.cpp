@@ -11,7 +11,7 @@
 #include <dirent.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <QThread>
+//#include <QThread>
 #include <QCoreApplication>
 
 char snd[MAXBUFLEN];
@@ -246,6 +246,8 @@ void ClientHandler::extract_fileList(const QString& mlist){
     int idx = 0;
     FileInfo fileInfo;
     fileList.clear();
+    qDebug() << "fileList.length=" << fileList.length();
+    qDebug() << "fileList.size=" << fileList.size();
     while ((idx = mlist.indexOf("name: \"", idx)) >= 0){
         int l = getContent(mlist, idx+7);
         fileInfo.name = mlist.mid(idx+7, l);
@@ -301,7 +303,6 @@ RetInfo ClientHandler::list(){
         qDebug() << "Before recv_list";
         p = recv_list(cu->dataCli->sockfd, mlist);
         qDebug() << "After recv_list";
-        dropOtherConn_Client(cu);
 
         do{
             p = waitMsg(cu->sockfd, rec, MAXBUFLEN);
@@ -316,10 +317,12 @@ RetInfo ClientHandler::list(){
         if (startWith(rec+idx, "226 ")){
             qDebug() << "LIST Successfully!";
             extract_fileList(QString(mlist));
+            dropOtherConn_Client(cu);
             return RetInfo(NOERROR, QString("LIST Successfully!"));
         } else
         {
             qDebug() << "some error happend when LIST!";
+            dropOtherConn_Client(cu);
             return RetInfo(-ERROROTHERS, QString(rec+idx+4));
         }
     } else
@@ -526,7 +529,7 @@ RetInfo ClientHandler::stor(const QString& filename, QProgressDialog& pd){
     if (p < 0) {    // error code!
         qDebug() << "sendMsg Error! " << -p;
         dropOtherConn_Client(cu);
-        return p;
+        return RetInfo(p);
     }
 
     do{
@@ -534,7 +537,7 @@ RetInfo ClientHandler::stor(const QString& filename, QProgressDialog& pd){
         if (p < 0) {    // error code!
             qDebug() << "waitMsg Error! " << -p;
             dropOtherConn_Client(cu);
-            return p;
+            return RetInfo(p);
         }
         idx = indexofDDDS(rec);
     } while (idx < 0);
@@ -551,21 +554,25 @@ RetInfo ClientHandler::stor(const QString& filename, QProgressDialog& pd){
                           cu->dataCli->sockfd, pd);
         if (!pd.wasCanceled())
             pd.cancel();
-        dropOtherConn_Client(cu);
+
         do{
             p = waitMsg(cu->sockfd, rec, MAXBUFLEN);
             if (p < 0) {    // error code!
                 qDebug() << "waitMsg Error! " << -p;
-                return p;
+                return RetInfo(p);
             }
             idx = indexofDDDS(rec);
         } while (idx < 0);
         qDebug() << "From server: " << QString(rec+idx+4);
 
         if (startWith(rec+idx, "226 ")){
+            dropOtherConn_Client(cu);
             return RetInfo(NOERROR, QString(rec+idx+4));
         } else
+        {
+            dropOtherConn_Client(cu);
             return RetInfo(-ERROROTHERS, QString(rec+idx+4));
+        }
     }
 
     dropOtherConn_Client(cu);
@@ -625,7 +632,7 @@ RetInfo ClientHandler::retr(const QString& filename,
     if (p < 0) {    // error code!
         qDebug() << "sendMsg Error! " << -p;
         dropOtherConn_Client(cu);
-        return p;
+        return RetInfo(p);
     }
 
     do{
@@ -633,7 +640,7 @@ RetInfo ClientHandler::retr(const QString& filename,
         if (p < 0) {    // error code!
             qDebug() << "waitMsg Error! " << -p;
             dropOtherConn_Client(cu);
-            return p;
+            return RetInfo(p);
         }
         idx = indexofDDDS(rec);
     } while (idx < 0);
@@ -671,7 +678,7 @@ RetInfo ClientHandler::retr(const QString& filename,
             p = waitMsg(cu->sockfd, rec, MAXBUFLEN);
             if (p < 0) {    // error code!
                 qDebug() << "waitMsg Error! " << -p;
-                return p;
+                return RetInfo(p);
             }
             idx = indexofDDDS(rec);
         } while (idx < 0);

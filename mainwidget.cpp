@@ -48,6 +48,11 @@ MainWidget::~MainWidget()
 }
 
 void MainWidget::show_Menu(QPoint pos){
+    if (this->transfering){
+        QMessageBox::about(this, "Error", "You are transfering Files!");
+        return;
+    }
+
     qDebug() << "show_Menu";
     QModelIndex index = ui->FileTbl->indexAt(pos);
     QTableWidgetItem *item = ui->FileTbl->item(index.row(), 0);
@@ -184,6 +189,7 @@ void MainWidget::setDirList(){
 }
 
 QString MainWidget::GetPWD(){
+
     ClientHandler *ch = mw->getClientHandler();
     RetInfo p = ch->pwd();
     // Connection Error!
@@ -200,8 +206,11 @@ void MainWidget::DoCWD(){
         return;
     }
 
+    qDebug() << "1";
     ClientHandler *ch = mw->getClientHandler();
+    qDebug() << "2";
     RetInfo p = ch->cwd(ui->LocEdt->text());
+    qDebug() << "3";
     // Connection Error!
     if (p.ErrorCode == -ERRORWRITE || p.ErrorCode == -ERRORREAD){
         QMessageBox::about(this, "Error", "Disconnect unexpectedly!");
@@ -212,8 +221,11 @@ void MainWidget::DoCWD(){
         ui->LocEdt->setText(ch->curpath);
     } else
     {
+        qDebug() << "4";
         setDirList();
+        qDebug() << "5";
     }
+    return;
 }
 
 void MainWidget::DcCWD(int row, int){
@@ -398,6 +410,8 @@ void MainWidget::Download(){
             QMessageBox::about(this, "Error", p.info);
         } else {
             Refresh();
+            qDebug() << '6';
         }
     }
+    return;
 }
