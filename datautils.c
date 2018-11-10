@@ -57,7 +57,7 @@ void getfilename(char* path){
     }
 }
 
-int getFilesize(const char* path){
+unsigned long long getFilesize(const char* path){
 	struct stat path_stat;
     if (stat(path, &path_stat) != 0){
         return 0;

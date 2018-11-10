@@ -501,7 +501,6 @@ int send_file_gui(char* filename, int fd, QProgressDialog& pd){
             return -ERRORDISCONN;
         }
         cnt += (unsigned long long)(len);
-//        QCoreApplication::processEvents();
         pd.setValue(int(cnt*100/size));
         QCoreApplication::processEvents();
     }
@@ -525,7 +524,7 @@ RetInfo ClientHandler::stor(const QString& filename, QProgressDialog& pd){
     sprintf(snd, "STOR %s\r\n", filename.toUtf8().data());
     p = sendMsg(cu->sockfd, snd, strlen(snd));
     if (p < 0) {    // error code!
-        printf("sendMsg Error! %d\n", -p);
+        qDebug() << "sendMsg Error! " << -p;
         dropOtherConn_Client(cu);
         return p;
     }
@@ -533,13 +532,13 @@ RetInfo ClientHandler::stor(const QString& filename, QProgressDialog& pd){
     do{
         p = waitMsg(cu->sockfd, rec, MAXBUFLEN);
         if (p < 0) {    // error code!
-            printf("waitMsg Error! %d\n", -p);
+            qDebug() << "waitMsg Error! " << -p;
             dropOtherConn_Client(cu);
             return p;
         }
         idx = indexofDDDS(rec);
     } while (idx < 0);
-    printf("From server: %s\n", rec+idx+4);
+    qDebug() << "From server: " << QString(rec+idx+4);
 
     if (startWith(rec+idx, "150 ")){
         qDebug() << "Start transfer...";
@@ -556,12 +555,12 @@ RetInfo ClientHandler::stor(const QString& filename, QProgressDialog& pd){
         do{
             p = waitMsg(cu->sockfd, rec, MAXBUFLEN);
             if (p < 0) {    // error code!
-                printf("waitMsg Error! %d\n", -p);
+                qDebug() << "waitMsg Error! " << -p;
                 return p;
             }
             idx = indexofDDDS(rec);
         } while (idx < 0);
-        printf("From server: %s\n", rec+idx+4);
+        qDebug() << "From server: " << QString(rec+idx+4);
 
         if (startWith(rec+idx, "226 ")){
             return RetInfo(NOERROR, QString(rec+idx+4));
@@ -571,4 +570,135 @@ RetInfo ClientHandler::stor(const QString& filename, QProgressDialog& pd){
 
     dropOtherConn_Client(cu);
     return RetInfo(-ERROROTHERS, QString(rec+idx+4));
+}
+
+int recv_file_gui(char* filename, int fd,
+                  QProgressDialog& pd,
+                  unsigned long long totsz){
+    int p;
+    char tmp[MAXBUFLEN+10];
+    int f = open(filename, O_CREAT|O_WRONLY, S_IRWXU|S_IRWXG|S_IROTH);
+    if (f < 0){
+        return -ERRORREADFROMDISC;
+    }
+    unsigned long long cnt = 0;
+    while (1){
+        if (pd.wasCanceled()){
+            break;
+        }
+
+        p = waitData(fd, tmp, MAXBUFLEN);
+        if (p < 0){
+            close(f);
+            return -ERRORDISCONN;
+        }
+
+        cnt += (unsigned long long)(p);
+        pd.setValue(int(cnt*100/totsz));
+        QCoreApplication::processEvents();
+
+        if (p == 0) {
+            break;
+        }
+        p = write(f, tmp, p);
+        if (p < 0){
+            close(f);
+            return -ERRORREADFROMDISC;
+        }
+    }
+    close(f);
+    return 0;
+}
+
+RetInfo ClientHandler::retr(const QString& filename,
+                            const QString& dirname,
+                            QProgressDialog& pd) {
+    int idx, p;
+
+    RetInfo ret = this->pasv();
+    if (ret.ErrorCode < 0){
+        return ret;
+    }
+
+    sprintf(snd, "RETR %s\r\n", filename.toUtf8().data());
+    p = sendMsg(cu->sockfd, snd, strlen(snd));
+    if (p < 0) {    // error code!
+        qDebug() << "sendMsg Error! " << -p;
+        dropOtherConn_Client(cu);
+        return p;
+    }
+
+    do{
+        p = waitMsg(cu->sockfd, rec, MAXBUFLEN);
+        if (p < 0) {    // error code!
+            qDebug() << "waitMsg Error! " << -p;
+            dropOtherConn_Client(cu);
+            return p;
+        }
+        idx = indexofDDDS(rec);
+    } while (idx < 0);
+    qDebug() << "From server: " << QString(rec+idx+4);
+    unsigned long long sz = extract_size(QString(rec+idx+4));
+    qDebug() << sz;
+
+    if (startWith(rec+idx, "150 ")){
+//        QString tmp;
+//        if (dirname.endsWith('/'))
+//            tmp = dirname+filename;
+//        else
+//            tmp = dirname+'/'+filename;
+
+        qDebug() << "Start transfer...";
+
+        pd.setMinimum(0);
+        pd.setMaximum(100);
+        pd.setValue(0);
+        pd.show();
+        QCoreApplication::processEvents();
+        if (dirname.endsWith('/'))
+            p = recv_file_gui((dirname+filename).toUtf8().data(),
+                              cu->dataCli->sockfd,
+                              pd, sz);
+        else
+            p = recv_file_gui((dirname+QString('/')+filename).toUtf8().data(),
+                              cu->dataCli->sockfd,
+                              pd, sz);
+        if (!pd.wasCanceled())
+            pd.cancel();
+        dropOtherConn_Client(cu);
+
+        do{
+            p = waitMsg(cu->sockfd, rec, MAXBUFLEN);
+            if (p < 0) {    // error code!
+                qDebug() << "waitMsg Error! " << -p;
+                return p;
+            }
+            idx = indexofDDDS(rec);
+        } while (idx < 0);
+        qDebug() << "From server: " << QString(rec+idx+4);
+
+        if (startWith(rec+idx, "226 ")){
+            qDebug() << "RETR Successfully!";
+            return RetInfo(NOERROR, QString(rec+idx+4));
+        } else
+        {
+            qDebug() << "some error happend when RETR!";
+            return RetInfo(-ERROROTHERS, QString(rec+idx+4));
+        }
+    }
+
+    dropOtherConn_Client(cu);
+    return RetInfo(-ERROROTHERS, QString(rec+idx+4));
+}
+
+unsigned long long ClientHandler::extract_size(const QString& msg){
+    int idx = msg.indexOf("bytes");
+    while (idx >= 0 && !msg[idx].isDigit()){
+        idx--;
+    }
+    QString ret = "";
+    while (idx >= 0 && msg[idx].isDigit()){
+        ret = msg[idx--]+ret;
+    }
+    return ret.toULongLong();
 }

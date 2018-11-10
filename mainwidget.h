@@ -30,6 +30,7 @@ public slots:
     void NewDir();
     void Remove();
     void Upload();
+    void Download();
     void show_Menu(QPoint);
 
 private:

@@ -12,7 +12,7 @@ int startWith(const char* s, const char* t);
 int is_regular_file(const char *path);
 int is_directory(const char* path);
 int exist(const char* path);
-int getFilesize(const char* path);
+unsigned long long getFilesize(const char* path);
 void getfilename(char* path);
 void toabsPath(char* oripath, char* curdir);
 int rm_dir(char* path);

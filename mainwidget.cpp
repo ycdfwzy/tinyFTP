@@ -69,12 +69,17 @@ void MainWidget::show_Menu(QPoint pos){
         menu.popMenu->addAction(menu.rename);
         menu.popMenu->addAction(menu.remove);
 
+        if (menu.type == "directory")
+            menu.download->setEnabled(false);
+
         connect(menu.rename, SIGNAL(triggered()),
                 this, SLOT(Rename()));
         connect(menu.refresh, SIGNAL(triggered()),
                 this, SLOT(Refresh()));
         connect(menu.remove, SIGNAL(triggered()),
                 this, SLOT(Remove()));
+        connect(menu.download, SIGNAL(triggered()),
+                this, SLOT(Download()));
     } else
     {
         menu.popMenu = new QMenu(ui->FileTbl);
@@ -157,14 +162,16 @@ void MainWidget::setDirList(){
             ui->FileTbl->setItem(0, 1, item1);
 
             QTableWidgetItem *item2 = new QTableWidgetItem();
-            if (ch->fileList[i].size > (1<<30)) //GB
-                item2->setText(QString::number(ch->fileList[i].size/1024./1024./1024, 'f', 1)+"Gb");
-            else if (ch->fileList[i].size > (1<<20))
-                item2->setText(QString::number(ch->fileList[i].size/1024./1024., 'f', 1)+"Mb");
-            else if (ch->fileList[i].size > (1<<10))
-                item2->setText(QString::number(ch->fileList[i].size/1024., 'f', 1)+"Kb");
-            else
-                item2->setText(QString::number(ch->fileList[i].size)+"byte");
+            if (ch->fileList[i].type != "directory"){
+                if (ch->fileList[i].size > (1<<30)) //GB
+                    item2->setText(QString::number(ch->fileList[i].size/1024./1024./1024, 'f', 1)+"Gb");
+                else if (ch->fileList[i].size > (1<<20))
+                    item2->setText(QString::number(ch->fileList[i].size/1024./1024., 'f', 1)+"Mb");
+                else if (ch->fileList[i].size > (1<<10))
+                    item2->setText(QString::number(ch->fileList[i].size/1024., 'f', 1)+"Kb");
+                else
+                    item2->setText(QString::number(ch->fileList[i].size)+"byte");
+            }
             item2->setFlags(item2->flags() & (~Qt::ItemIsEditable));
             ui->FileTbl->setItem(0, 2, item2);
 
@@ -209,7 +216,7 @@ void MainWidget::DoCWD(){
     }
 }
 
-void MainWidget::DcCWD(int row, int col){
+void MainWidget::DcCWD(int row, int){
     if (this->transfering){
         QMessageBox::about(this, "Error", "You are transfering Files!");
         return;
@@ -339,7 +346,7 @@ void MainWidget::Upload(){
         pd.setWindowTitle("Send File");
         pd.setWindowModality(Qt::WindowModal);
         pd.setCancelButtonText("STOP");
-        pd.setLabelText(QString("Sending ")+filename);
+        pd.setLabelText(QString("Uploading ")+filename);
 
         ClientHandler *ch = mw->getClientHandler();
         this->transfering = true;
@@ -351,7 +358,44 @@ void MainWidget::Upload(){
         } else
         if (p.ErrorCode < 0){
             QMessageBox::about(this, "Error", p.info);
-            ui->LocEdt->setText(ch->curpath);
+        } else {
+            Refresh();
+        }
+    }
+}
+
+void MainWidget::Download(){
+    if (this->transfering){
+        QMessageBox::about(this, "Error", "You are transfering Files!");
+        return;
+    }
+
+    QFileDialog fd(this);
+    fd.setWindowTitle("Choose download directory");
+    fd.setAcceptMode(QFileDialog::AcceptSave);
+    fd.setFileMode(QFileDialog::DirectoryOnly);
+    fd.setOption(QFileDialog::DontUseNativeDialog);
+
+    if (fd.exec() == QFileDialog::Accepted) {
+        QString dirname = fd.selectedFiles()[0];
+
+        QProgressDialog pd;
+        pd.setWindowTitle("Receive File");
+        pd.setWindowModality(Qt::WindowModal);
+        pd.setCancelButtonText("STOP");
+        pd.setLabelText(QString("Downloading ")+menu.name);
+
+        ClientHandler *ch = mw->getClientHandler();
+        this->transfering = true;
+        RetInfo p = ch->retr(menu.name, dirname, pd);
+        this->transfering = false;
+
+        if (p.ErrorCode == -ERRORWRITE || p.ErrorCode == -ERRORREAD){
+            QMessageBox::about(this, "Error", "Disconnect unexpectedly!");
+            emit mw->SIGLogoutOK();
+        } else
+        if (p.ErrorCode < 0){
+            QMessageBox::about(this, "Error", p.info);
         } else {
             Refresh();
         }

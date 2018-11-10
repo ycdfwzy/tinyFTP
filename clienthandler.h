@@ -42,6 +42,9 @@ public:
     RetInfo list();
     RetInfo stor(const QString&,
                  QProgressDialog&);
+    RetInfo retr(const QString&,
+                 const QString&,
+                 QProgressDialog&);
     RetInfo cwd(const QString&);
     RetInfo rename(const QString&,
                    const QString&);
@@ -63,6 +66,7 @@ public:
 
     private:
         void extract_fileList(const QString&);
+        unsigned long long extract_size(const QString&);
 };
 
 #endif // CLIENTHANDLER_H

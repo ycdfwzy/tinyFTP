@@ -178,7 +178,7 @@ int CmdHandle(struct Command cmd, struct connClient* cc, char* msg) {
             if (cmd.num_params == 1){
                 strcpy(tmp, cmd.params[0]);
                 toabsPath(tmp, cc->curdir);
-                printf("RETR_thread: abspath %s\n", tmp);
+                printf("RETR: abspath %s\n", tmp);
 
                 char rootpath[512];
                 getcwd(rootpath, 512);
@@ -188,12 +188,12 @@ int CmdHandle(struct Command cmd, struct connClient* cc, char* msg) {
                 } else
 
                 if (!exist(tmp) || is_directory(tmp)){
-                    printf("RETR_thread: File Not found!\n");
+                    printf("RETR: File Not found!\n");
                     msg = "451 File Not found!\r\n\0";
                 } else
                 {
-                    int sz = getFilesize(tmp);
-                    sprintf(msg, "150 Start transfer(%d bytes)\r\n", sz);
+                    unsigned long long sz = getFilesize(tmp);
+                    sprintf(msg, "150 Start transfer(%llu bytes)\r\n", sz);
                     p = sendMsg(connfd, msg, strlen(msg));
 
                     int fd = -1;
