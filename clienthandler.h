@@ -17,6 +17,7 @@
 #include "socketutils.h"
 #include <QString>
 #include <QVector>
+#include <QProgressDialog>
 
 struct RetInfo{
     int ErrorCode;
@@ -39,6 +40,8 @@ public:
     RetInfo pwd();
     RetInfo pasv();
     RetInfo list();
+    RetInfo stor(const QString&,
+                 QProgressDialog&);
     RetInfo cwd(const QString&);
     RetInfo rename(const QString&,
                    const QString&);
@@ -60,7 +63,6 @@ public:
 
     private:
         void extract_fileList(const QString&);
-
 };
 
 #endif // CLIENTHANDLER_H

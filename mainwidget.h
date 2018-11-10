@@ -24,10 +24,12 @@ public:
 public slots:
     void Logout();
     void DoCWD();
+    void DcCWD(int, int);   // double-clicked
     void Rename();
     void Refresh();
     void NewDir();
     void Remove();
+    void Upload();
     void show_Menu(QPoint);
 
 private:
@@ -44,6 +46,7 @@ private:
         QString name;
         QString type;
     } menu;
+    bool transfering;
     void removeFileList();
 };
 

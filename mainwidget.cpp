@@ -6,6 +6,8 @@
 #include <QDebug>
 #include <QDialog>
 #include <QInputDialog>
+#include <QFileDialog>
+#include <QProgressDialog>
 
 MainWidget::MainWidget(
         QString ip, int port, QString name,
@@ -15,6 +17,7 @@ MainWidget::MainWidget(
     mw(mw_)
 {
     ui->setupUi(this);
+    this->transfering = false;
     ui->SerEdt->setText(ip+QString(":")+QString::number(port));
     ui->NameEdt->setText(name);
     connect(ui->DisconBtn, SIGNAL(clicked()),
@@ -25,12 +28,18 @@ MainWidget::MainWidget(
             this, SLOT(DoCWD()));
     connect(ui->GoBtn, SIGNAL(clicked()),
             this, SLOT(DoCWD()));
+    connect(ui->MkdBtn, SIGNAL(clicked()),
+            this, SLOT(NewDir()));
+    connect(ui->UpBtn, SIGNAL(clicked()),
+            this, SLOT(Upload()));
     setDirList();
 
     menu.popMenu = nullptr;
     ui->FileTbl->setContextMenuPolicy(Qt::CustomContextMenu);
     connect(ui->FileTbl, SIGNAL(customContextMenuRequested(QPoint)),
             this, SLOT(show_Menu(QPoint)));
+    connect(ui->FileTbl, SIGNAL(cellDoubleClicked(int, int)),
+            this, SLOT(DcCWD(int, int)));
 }
 
 MainWidget::~MainWidget()
@@ -76,6 +85,8 @@ void MainWidget::show_Menu(QPoint pos){
         menu.popMenu->addAction(menu.refresh);
         menu.popMenu->addAction(menu.newfloder);
 
+        connect(menu.upload, SIGNAL(triggered()),
+                this, SLOT(Upload()));
         connect(menu.refresh, SIGNAL(triggered()),
                 this, SLOT(Refresh()));
         connect(menu.newfloder, SIGNAL(triggered()),
@@ -85,6 +96,10 @@ void MainWidget::show_Menu(QPoint pos){
 }
 
 void MainWidget::Logout(){
+    if (this->transfering){
+        QMessageBox::about(this, "Error", "You are transfering Files!");
+        return;
+    }
     ClientHandler *ch = mw->getClientHandler();
     RetInfo p = ch->quit();
     // Connection Error!
@@ -107,6 +122,10 @@ void MainWidget::removeFileList(){
 }
 
 void MainWidget::setDirList(){
+    if (this->transfering){
+        QMessageBox::about(this, "Error", "You are transfering Files!");
+        return;
+    }
     removeFileList();
     ui->FileTbl->setColumnCount(4);
     ui->FileTbl->horizontalHeader()->setStretchLastSection(true);
@@ -169,6 +188,11 @@ QString MainWidget::GetPWD(){
 }
 
 void MainWidget::DoCWD(){
+    if (this->transfering){
+        QMessageBox::about(this, "Error", "You are transfering Files!");
+        return;
+    }
+
     ClientHandler *ch = mw->getClientHandler();
     RetInfo p = ch->cwd(ui->LocEdt->text());
     // Connection Error!
@@ -185,7 +209,29 @@ void MainWidget::DoCWD(){
     }
 }
 
+void MainWidget::DcCWD(int row, int col){
+    if (this->transfering){
+        QMessageBox::about(this, "Error", "You are transfering Files!");
+        return;
+    }
+    if (ui->FileTbl->item(row, 1)->text() != "directory"){
+        return;
+    }
+
+    ClientHandler *ch = mw->getClientHandler();
+    if (ch->curpath.endsWith('/')){
+        ui->LocEdt->setText(ch->curpath+ui->FileTbl->item(row, 0)->text());
+    } else
+        ui->LocEdt->setText(ch->curpath+QString("/")+ui->FileTbl->item(row, 0)->text());
+    DoCWD();
+}
+
 void MainWidget::Rename(){
+    if (this->transfering){
+        QMessageBox::about(this, "Error", "You are transfering Files!");
+        return;
+    }
+
     QInputDialog input(this);
     input.setWindowTitle("File Name");
     input.setLabelText("Input filename:");
@@ -210,10 +256,20 @@ void MainWidget::Rename(){
 }
 
 void MainWidget::Refresh(){
+    if (this->transfering){
+        QMessageBox::about(this, "Error", "You are transfering Files!");
+        return;
+    }
+
     DoCWD();
 }
 
 void MainWidget::NewDir(){
+    if (this->transfering){
+        QMessageBox::about(this, "Error", "You are transfering Files!");
+        return;
+    }
+
     QInputDialog input(this);
     input.setWindowTitle("New Floder");
     input.setLabelText("Floder name:");
@@ -237,6 +293,11 @@ void MainWidget::NewDir(){
 }
 
 void MainWidget::Remove(){
+    if (this->transfering){
+        QMessageBox::about(this, "Error", "You are transfering Files!");
+        return;
+    }
+
     QMessageBox msg(this);
     msg.setWindowTitle("Warning");
     msg.setText(QString("Are you sure to DELETE ")+menu.type);
@@ -244,10 +305,46 @@ void MainWidget::Remove(){
     msg.setStandardButtons(QMessageBox::Cancel | QMessageBox::Ok);
 
     if (msg.exec() == QMessageBox::Ok){
-        qDebug() << "Ok";
-
         ClientHandler *ch = mw->getClientHandler();
         RetInfo p = ch->remove(menu.name, menu.type);
+        if (p.ErrorCode == -ERRORWRITE || p.ErrorCode == -ERRORREAD){
+            QMessageBox::about(this, "Error", "Disconnect unexpectedly!");
+            emit mw->SIGLogoutOK();
+        } else
+        if (p.ErrorCode < 0){
+            QMessageBox::about(this, "Error", p.info);
+            ui->LocEdt->setText(ch->curpath);
+        } else {
+            Refresh();
+        }
+    }
+}
+
+void MainWidget::Upload(){
+    if (this->transfering){
+        QMessageBox::about(this, "Error", "You are transfering Files!");
+        return;
+    }
+
+    QFileDialog fd(this);
+    fd.setWindowTitle("Choose upload file");
+    fd.setAcceptMode(QFileDialog::AcceptOpen);
+    fd.setFileMode(QFileDialog::ExistingFile);
+    fd.setOption(QFileDialog::DontUseNativeDialog);
+
+    if (fd.exec() == QFileDialog::Accepted){
+        QString filename = fd.selectedFiles()[0];
+
+        QProgressDialog pd;
+        pd.setWindowTitle("Send File");
+        pd.setWindowModality(Qt::WindowModal);
+        pd.setCancelButtonText("STOP");
+        pd.setLabelText(QString("Sending ")+filename);
+
+        ClientHandler *ch = mw->getClientHandler();
+        this->transfering = true;
+        RetInfo p = ch->stor(filename, pd);
+        this->transfering = false;
         if (p.ErrorCode == -ERRORWRITE || p.ErrorCode == -ERRORREAD){
             QMessageBox::about(this, "Error", "Disconnect unexpectedly!");
             emit mw->SIGLogoutOK();

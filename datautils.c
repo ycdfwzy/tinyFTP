@@ -532,7 +532,6 @@ int recv_list(int fd, char* filelist) {
 int send_file(char* filename, int fd){
 	int p;
 	char tmp[MAXBUFLEN];
-	// FILE* f = fopen(filename, "rb");
 	int f = open(filename, O_RDONLY);
 	if (f < 0){
 		return -ERRORREADFROMDISC;
@@ -551,12 +550,6 @@ int send_file(char* filename, int fd){
 		close(f);
 		return -ERRORREADFROMDISC;
 	}
-	// sprintf(tmp, "\4");
-	// p = sendMsg(fd, tmp, strlen(tmp));
-	// if (p < 0){
-	// 	fclose(f);
-	// 	return -ERRORDISCONN;
-	// }
 
 	close(f);
 	return 0;

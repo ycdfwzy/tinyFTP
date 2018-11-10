@@ -6,6 +6,13 @@
 #include <string>
 #include <cstdio>
 #include <QDebug>
+#include <unistd.h>
+#include <fcntl.h>
+#include <dirent.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <QThread>
+#include <QCoreApplication>
 
 char snd[MAXBUFLEN];
 char rec[MAXBUFLEN];
@@ -467,4 +474,101 @@ RetInfo ClientHandler::remove(const QString& name, const QString& type){
     }
 
     return RetInfo(NOERROR, QString(rec+idx+4));
+}
+
+int send_file_gui(char* filename, int fd, QProgressDialog& pd){
+    int p;
+    char tmp[MAXBUFLEN];
+    struct stat path_stat;
+    stat(filename, &path_stat);
+    unsigned long long size = path_stat.st_size;
+    qDebug() << size;
+
+    int f = open(filename, O_RDONLY);
+    if (f < 0){
+        return -ERRORREADFROMDISC;
+    }
+
+    unsigned long long cnt = 0;
+    ssize_t len;
+    while ((len = read(f, tmp, MAXBUFLEN)) > 0){
+        if (pd.wasCanceled()){
+            break;
+        }
+        p = sendMsg(fd, tmp, len);
+        if (p < 0){
+            close(f);
+            return -ERRORDISCONN;
+        }
+        cnt += (unsigned long long)(len);
+//        QCoreApplication::processEvents();
+        pd.setValue(int(cnt*100/size));
+        QCoreApplication::processEvents();
+    }
+    if (len == -1){
+        close(f);
+        return -ERRORREADFROMDISC;
+    }
+
+    close(f);
+    return 0;
+}
+
+RetInfo ClientHandler::stor(const QString& filename, QProgressDialog& pd){
+    int p, idx;
+
+    RetInfo ret = this->pasv();
+    if (ret.ErrorCode < 0){
+        return ret;
+    }
+
+    sprintf(snd, "STOR %s\r\n", filename.toUtf8().data());
+    p = sendMsg(cu->sockfd, snd, strlen(snd));
+    if (p < 0) {    // error code!
+        printf("sendMsg Error! %d\n", -p);
+        dropOtherConn_Client(cu);
+        return p;
+    }
+
+    do{
+        p = waitMsg(cu->sockfd, rec, MAXBUFLEN);
+        if (p < 0) {    // error code!
+            printf("waitMsg Error! %d\n", -p);
+            dropOtherConn_Client(cu);
+            return p;
+        }
+        idx = indexofDDDS(rec);
+    } while (idx < 0);
+    printf("From server: %s\n", rec+idx+4);
+
+    if (startWith(rec+idx, "150 ")){
+        qDebug() << "Start transfer...";
+        pd.setMinimum(0);
+        pd.setMaximum(100);
+        pd.setValue(0);
+        pd.show();
+        QCoreApplication::processEvents();
+        p = send_file_gui(filename.toUtf8().data(),
+                          cu->dataCli->sockfd, pd);
+        if (!pd.wasCanceled())
+            pd.cancel();
+        dropOtherConn_Client(cu);
+        do{
+            p = waitMsg(cu->sockfd, rec, MAXBUFLEN);
+            if (p < 0) {    // error code!
+                printf("waitMsg Error! %d\n", -p);
+                return p;
+            }
+            idx = indexofDDDS(rec);
+        } while (idx < 0);
+        printf("From server: %s\n", rec+idx+4);
+
+        if (startWith(rec+idx, "226 ")){
+            return RetInfo(NOERROR, QString(rec+idx+4));
+        } else
+            return RetInfo(-ERROROTHERS, QString(rec+idx+4));
+    }
+
+    dropOtherConn_Client(cu);
+    return RetInfo(-ERROROTHERS, QString(rec+idx+4));
 }
