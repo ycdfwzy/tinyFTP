@@ -20,6 +20,8 @@ char rec[MAXBUFLEN];
 ClientHandler::ClientHandler()
 {
     this->cu = nullptr;
+    for (int i = 0; i < 4; ++i)
+        this->order[i] = 0;
 }
 
 ClientHandler::~ClientHandler(){
@@ -265,8 +267,11 @@ void ClientHandler::extract_fileList(const QString& mlist){
 
         idx = mlist.indexOf("last modification: \"", idx);
         l = getContent(mlist, idx+20);
-        fileInfo.mtime = mlist.mid(idx+20, l);
+        fileInfo.mtime = mlist.mid(idx+20, l).toLong();
         idx += 20+l;
+
+        if (fileInfo.type == "directory")
+            fileInfo.size = -1;
 
         fileList.append(fileInfo);
     }

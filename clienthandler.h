@@ -18,6 +18,7 @@
 #include <QString>
 #include <QVector>
 #include <QProgressDialog>
+#include <time.h>
 
 struct RetInfo{
     int ErrorCode;
@@ -57,8 +58,12 @@ public:
         QString name;
         QString type;
         long long size;
-        QString mtime;
+//        QString mtime;
+        time_t mtime;
     };
+    int order[4]; // 0 disorder
+                  // 1 AscendingOrder
+                  // 2 DescendingOrder
     QVector<FileInfo> fileList;
 
     QString rootpath;

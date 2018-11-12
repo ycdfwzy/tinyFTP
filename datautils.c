@@ -425,9 +425,11 @@ int cmd_LISTD(int connfd, char* pathname, char* msg) {
         //         strcpy(type, "Unknown");
         // }
 
-        sprintf(msg, "name: \"%s\" type: \"%s\"\t size: \"%lu\"\t last modification: \"%s\"\n",
+        sprintf(msg, "name: \"%s\" type: \"%s\"\t size: \"%lu\"\t last modification: \"%lu\"\n",
         			dir->d_name, type, path_stat.st_size,
-        			ctime(&(path_stat.st_mtime)));
+                    path_stat.st_mtime
+        			// ctime(&(path_stat.st_mtime))
+                    );
         p = sendMsg(connfd, msg, strlen(msg));
         if (p < 0) {
             closedir(dp);
@@ -481,11 +483,14 @@ int cmd_LISTF(int connfd, char* curpath, char* msg) {
            case S_IFSOCK: sprintf(type, "socket");                  break;
            default:       sprintf(type, "unknown");                break;
            }
-    sprintf(msg, "name: %s\n\ttype: %s\n\tsize: %lu bytes\n\tlast access: %s\tlast modification: %s\n",
+    sprintf(msg, "name: %s\n\ttype: %s\n\tsize: %lu bytes\n\tlast access: %lu\tlast modification: %lu\n",
                     curpath+t, type, path_stat.st_size,
-                    ctime(&(path_stat.st_atime)),
+                    path_stat.st_atime,
+                    path_stat.st_mtime
+                    // ctime(&(path_stat.st_atime)),
                     // asctime(localtime(&(path_stat.st_atime))),
-                    ctime(&(path_stat.st_mtime)) );
+                    // ctime(&(path_stat.st_mtime))
+                    );
     p = sendMsg(connfd, msg, strlen(msg));
     if (p < 0){
     	return -ERRORDISCONN;

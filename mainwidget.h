@@ -31,6 +31,8 @@ public slots:
     void Remove();
     void Upload();
     void Download();
+    void sortRow(int);
+    void showFileList(int);
     void show_Menu(QPoint);
 
 private:

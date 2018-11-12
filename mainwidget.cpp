@@ -8,6 +8,8 @@
 #include <QInputDialog>
 #include <QFileDialog>
 #include <QProgressDialog>
+#include <algorithm>
+#include <time.h>
 
 MainWidget::MainWidget(
         QString ip, int port, QString name,
@@ -136,11 +138,13 @@ void MainWidget::setDirList(){
         QMessageBox::about(this, "Error", "You are transfering Files!");
         return;
     }
-    removeFileList();
     ui->FileTbl->setColumnCount(4);
     ui->FileTbl->horizontalHeader()->setStretchLastSection(true);
     ui->FileTbl->setHorizontalHeaderLabels(QStringList() << "Name" << "Type" << "Size" << "Last Modification");
     ui->FileTbl->setSelectionBehavior(QAbstractItemView::SelectRows);
+
+    connect(ui->FileTbl->horizontalHeader(), SIGNAL(sectionClicked(int)),
+            this, SLOT(sortRow(int)));
 
     ClientHandler *ch = mw->getClientHandler();
     RetInfo p = ch->list();
@@ -152,39 +156,12 @@ void MainWidget::setDirList(){
         QMessageBox::about(this, "Error", "Get file list error!");
     } else
     {
-        for (int i = 0; i < ch->fileList.length(); ++i){
-            ui->FileTbl->insertRow(0);
-            ui->FileTbl->setRowHeight(0, 20);
-
-            QTableWidgetItem *item0 = new QTableWidgetItem();
-            item0->setText(ch->fileList[i].name);
-            item0->setFlags(item0->flags() & (~Qt::ItemIsEditable));
-            ui->FileTbl->setItem(0, 0, item0);
-
-            QTableWidgetItem *item1 = new QTableWidgetItem();
-            item1->setText(ch->fileList[i].type);
-            item1->setFlags(item1->flags() & (~Qt::ItemIsEditable));
-            ui->FileTbl->setItem(0, 1, item1);
-
-            QTableWidgetItem *item2 = new QTableWidgetItem();
-            if (ch->fileList[i].type != "directory"){
-                if (ch->fileList[i].size > (1<<30)) //GB
-                    item2->setText(QString::number(ch->fileList[i].size/1024./1024./1024, 'f', 1)+"Gb");
-                else if (ch->fileList[i].size > (1<<20))
-                    item2->setText(QString::number(ch->fileList[i].size/1024./1024., 'f', 1)+"Mb");
-                else if (ch->fileList[i].size > (1<<10))
-                    item2->setText(QString::number(ch->fileList[i].size/1024., 'f', 1)+"Kb");
-                else
-                    item2->setText(QString::number(ch->fileList[i].size)+"byte");
+        for (int i = 0; i < 4; ++i)
+            if (ch->order[i] != 0){
+                sortRow(i);
+                return;
             }
-            item2->setFlags(item2->flags() & (~Qt::ItemIsEditable));
-            ui->FileTbl->setItem(0, 2, item2);
-
-            QTableWidgetItem *item3 = new QTableWidgetItem();
-            item3->setText(ch->fileList[i].mtime);
-            item3->setFlags(item3->flags() & (~Qt::ItemIsEditable));
-            ui->FileTbl->setItem(0, 3, item3);
-        }
+        sortRow(0);
     }
 }
 
@@ -206,11 +183,8 @@ void MainWidget::DoCWD(){
         return;
     }
 
-    qDebug() << "1";
     ClientHandler *ch = mw->getClientHandler();
-    qDebug() << "2";
     RetInfo p = ch->cwd(ui->LocEdt->text());
-    qDebug() << "3";
     // Connection Error!
     if (p.ErrorCode == -ERRORWRITE || p.ErrorCode == -ERRORREAD){
         QMessageBox::about(this, "Error", "Disconnect unexpectedly!");
@@ -221,11 +195,8 @@ void MainWidget::DoCWD(){
         ui->LocEdt->setText(ch->curpath);
     } else
     {
-        qDebug() << "4";
         setDirList();
-        qDebug() << "5";
     }
-    return;
 }
 
 void MainWidget::DcCWD(int row, int){
@@ -408,10 +379,112 @@ void MainWidget::Download(){
         } else
         if (p.ErrorCode < 0){
             QMessageBox::about(this, "Error", p.info);
-        } else {
-            Refresh();
-            qDebug() << '6';
         }
     }
-    return;
+}
+
+void MainWidget::sortRow(int index){
+    if (index < 0 || index > 4){
+        qDebug() << "index = " << index;
+        return;
+    }
+    ClientHandler *ch = mw->getClientHandler();
+    Qt::SortOrder order;
+    if (ch->order[index] == 0 || ch->order[index] == 2){
+        order = Qt::AscendingOrder;
+        ch->order[index] = 1;
+    }
+    else {
+        order = Qt::DescendingOrder;
+        ch->order[index] = 2;
+    }
+
+    for (int i = 0; i < 4; ++i)
+    if (i != index){
+        ch->order[i] = 0;
+    }
+    ui->FileTbl->horizontalHeader()->setSortIndicatorShown(true);
+    ui->FileTbl->horizontalHeader()->setSortIndicator(index, order);
+
+    showFileList(index);
+}
+
+void MainWidget::showFileList(int index){
+    ClientHandler *ch = mw->getClientHandler();
+    int ord = ch->order[index];
+    switch (index) {
+        case 0:
+            std::sort(ch->fileList.begin(), ch->fileList.end(),
+                  [ord](const ClientHandler::FileInfo& a,
+                      const ClientHandler::FileInfo& b){
+                        if (ord == 1)
+                            return a.name > b.name;
+                        return a.name < b.name;
+                    });
+            break;
+        case 1:
+            std::sort(ch->fileList.begin(), ch->fileList.end(),
+              [ord](const ClientHandler::FileInfo& a,
+                  const ClientHandler::FileInfo& b){
+                    if (ord == 1)
+                        return a.type > b.type;
+                    return a.type < b.type;
+                });
+            break;
+        case 2:
+            std::sort(ch->fileList.begin(), ch->fileList.end(),
+              [ord](const ClientHandler::FileInfo& a,
+                  const ClientHandler::FileInfo& b){
+                    if (a.size == -1 || b.size == -1)
+                        return a.size == -1 && b.size != -1;
+                    if (ord == 1){
+                        return a.size > b.size;
+                    }
+                    return a.size < b.size;
+                });
+            break;
+        case 3:
+            std::sort(ch->fileList.begin(), ch->fileList.end(),
+              [ord](const ClientHandler::FileInfo& a,
+                  const ClientHandler::FileInfo& b){
+                    if (ord == 1)
+                        return a.mtime > b.mtime;
+                    return a.mtime < b.mtime;
+                });
+            break;
+    }
+    removeFileList();
+    for (int i = 0; i < ch->fileList.length(); ++i){
+        ui->FileTbl->insertRow(0);
+        ui->FileTbl->setRowHeight(0, 20);
+
+        QTableWidgetItem *item0 = new QTableWidgetItem();
+        item0->setText(ch->fileList[i].name);
+        item0->setFlags(item0->flags() & (~Qt::ItemIsEditable));
+        ui->FileTbl->setItem(0, 0, item0);
+
+        QTableWidgetItem *item1 = new QTableWidgetItem();
+        item1->setText(ch->fileList[i].type);
+        item1->setFlags(item1->flags() & (~Qt::ItemIsEditable));
+        ui->FileTbl->setItem(0, 1, item1);
+
+        QTableWidgetItem *item2 = new QTableWidgetItem();
+        if (ch->fileList[i].type != "directory"){
+            if (ch->fileList[i].size > (1<<30)) //GB
+                item2->setText(QString::number(ch->fileList[i].size/1024./1024./1024, 'f', 1)+"Gb");
+            else if (ch->fileList[i].size > (1<<20))
+                item2->setText(QString::number(ch->fileList[i].size/1024./1024., 'f', 1)+"Mb");
+            else if (ch->fileList[i].size > (1<<10))
+                item2->setText(QString::number(ch->fileList[i].size/1024., 'f', 1)+"Kb");
+            else
+                item2->setText(QString::number(ch->fileList[i].size)+"byte");
+        }
+        item2->setFlags(item2->flags() & (~Qt::ItemIsEditable));
+        ui->FileTbl->setItem(0, 2, item2);
+
+        QTableWidgetItem *item3 = new QTableWidgetItem();
+        item3->setText(QString(asctime(localtime(&ch->fileList[i].mtime))));
+        item3->setFlags(item3->flags() & (~Qt::ItemIsEditable));
+        ui->FileTbl->setItem(0, 3, item3);
+    }
 }
