@@ -555,6 +555,36 @@ int send_file(char* filename, int fd){
 	return 0;
 }
 
+int send_file_at(char* filename, int fd, long long start_pos){
+    int p;
+    char tmp[MAXBUFLEN];
+    int f = open(filename, O_RDONLY);
+    if (f < 0){
+        return -ERRORREADFROMDISC;
+    }
+
+    if (lseek(f, (off_t)start_pos, SEEK_SET) == (off_t)-1){
+        return -ERRORREADFROMDISC;
+    }
+
+    ssize_t len;
+    while ((len = read(f, tmp, MAXBUFLEN)) > 0){
+        printf("read size=%lu\n", len);
+        p = sendMsg(fd, tmp, len);
+        if (p < 0){
+            close(f);
+            return -ERRORDISCONN;
+        }
+    }
+    if (len == -1){
+        close(f);
+        return -ERRORREADFROMDISC;
+    }
+
+    close(f);
+    return 0;
+}
+
 int recv_file(char* filename, int fd){
 	int p;
 	char tmp[MAXBUFLEN+10];
@@ -583,6 +613,36 @@ int recv_file(char* filename, int fd){
 	close(f);
 	return 0;
 }
+
+int recv_file_append(char* filename, int fd){
+    int p;
+    char tmp[MAXBUFLEN+10];
+    // FILE* f = fopen(filename, "wb");
+    int f = open(filename, O_CREAT|O_WRONLY|O_APPEND, S_IRWXU|S_IRWXG|S_IROTH);
+    if (f < 0){
+        return -ERRORREADFROMDISC;
+    }
+    while (1){
+        p = waitData(fd, tmp, MAXBUFLEN);
+        if (p < 0){
+            close(f);
+            return -ERRORDISCONN;
+        }
+        // if (endWith(tmp, "Complete!")){
+        if (p == 0) {
+        // if (endWith(tmp, "\4")){
+            break;
+        }
+        p = write(f, tmp, p);
+        if (p < 0){
+            close(f);
+            return -ERRORREADFROMDISC;
+        }
+    }
+    close(f);
+    return 0;
+}
+
 #ifdef __cplusplus
 }
 #endif

@@ -22,6 +22,7 @@ struct connClient{
 	char curdir[512];
 	char oldpath[512];
     int connfd;
+    long long start_pos;
     struct ServerUtils* dataSer;
 	struct ClientUtils* dataCli;
 };

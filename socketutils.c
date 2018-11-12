@@ -24,6 +24,7 @@ void closeCli(struct ClientUtils* cu){
 
 void initconnClient(struct connClient* cc){
 	cc->connfd = -1;
+	cc->start_pos = 0;
 	cc->oldpath[0] = '\0';
 	cc->dataSer = NULL;
 	cc->dataCli = NULL;

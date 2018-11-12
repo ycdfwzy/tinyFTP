@@ -48,6 +48,14 @@ int getlen(char* msg){
     return len;
 }
 
+int isInteger(const char* s){
+    int len = strlen(s);
+    for (int  i = 0; i < len; ++i)
+        if (s[i] < '0' || s[i] > '9')
+            return -1;
+    return 0;
+}
+
 void format(char* s, char* t) {
     int len = strlen(s);
     int i, j;
@@ -203,13 +211,14 @@ int CmdHandle(struct Command cmd, struct connClient* cc, char* msg) {
                     {
                         fd = cc->dataCli->sockfd;
                     }
+                    
 
                     if (fd == -1) {
                         sprintf(msg, "425 Connection is not established!\r\n");
                         p = sendMsg(connfd, msg, strlen(msg));
                     } else
                     {
-                        p = send_file(tmp, fd);
+                        p = send_file_at(tmp, fd, cc->start_pos);
                         dropOtherConn_CONN(cc);
                         
                         if (p == 0){
@@ -249,7 +258,7 @@ int CmdHandle(struct Command cmd, struct connClient* cc, char* msg) {
                 strcpy(tmp, cmd.params[0]);
                 getfilename(tmp);
                 toabsPath(tmp, cc->curdir);
-                printf("STOR_thread: abspath %s:\n", tmp);
+                printf("abspath %s:\n", tmp);
 
                 char rootpath[512];
                 getcwd(rootpath, 512);
@@ -296,11 +305,31 @@ int CmdHandle(struct Command cmd, struct connClient* cc, char* msg) {
 
             } else
             {
-                printf("STOR_thread: STOR parmas Error!\n");
+                printf("STOR parmas Error!\n");
                 msg = "450 STOR parmas Error!\r\n\0";
                 p = sendMsg(connfd, msg, strlen(msg));
             }
             dropOtherConn_CONN(cc);
+        }
+    } else
+
+    if (strcmp(cmd.cmdName, "REST") == 0){
+        if (cc->dataSer == NULL && cc->dataCli == NULL){
+            msg = "450 Please choose mode(PORT/PASV)\r\n\0";
+            p = sendMsg(connfd, msg, strlen(msg));
+        } else
+        {
+            if (cmd.num_params == 1 && isInteger(cmd.params[0]) == 0){
+                cc->start_pos = atoll(cmd.params[0]);
+                printf("start position: %lld\n", cc->start_pos);
+                
+                msg = "350 Set start position successfully\r\n\0";
+                p = sendMsg(connfd, msg, strlen(msg));
+            } else
+            {
+                msg = "450 Set start position failed\r\n\0";
+                p = sendMsg(connfd, msg, strlen(msg));
+            }
         }
     } else
 

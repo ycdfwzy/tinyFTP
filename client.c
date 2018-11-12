@@ -315,10 +315,10 @@ int cmd_RETR(struct Command* cmd, char* snd, char* rec, struct ClientUtils* cu) 
         strcpy(tmp, cmd->params[0]);
         getfilename(tmp);
         if (cu->dataSer != NULL) {
-            p = recv_file(tmp, cu->dataSer->conn[0].connfd);
+            p = recv_file_append(tmp, cu->dataSer->conn[0].connfd);
         } else
         {
-            p = recv_file(tmp, cu->dataCli->sockfd);
+            p = recv_file_append(tmp, cu->dataCli->sockfd);
         }
 
         // if (p == -ERRORREADFROMDISC){
