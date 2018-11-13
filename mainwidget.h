@@ -3,6 +3,9 @@
 
 #include <QWidget>
 #include <QMenu>
+#include <QPushButton>
+#include <QVector>
+#include "clienthandler.h"
 
 namespace Ui {
 class MainWidget;
@@ -21,6 +24,10 @@ public:
     QString GetPWD();
     void setDirList();
 
+    void setTransfering(bool transfering)
+        { this->transfering = transfering; }
+    MainWindow* getMainWindow() const { return mw; }
+
 public slots:
     void Logout();
     void DoCWD();
@@ -34,6 +41,7 @@ public slots:
     void sortRow(int);
     void showFileList(int);
     void show_Menu(QPoint);
+    void RECVBTNCLICKED();
 
 private:
     Ui::MainWidget *ui;
@@ -50,7 +58,13 @@ private:
         QString type;
     } menu;
     bool transfering;
+    QVector<RecvInfo> recvList;
+
     void removeFileList();
+    void initRecvFileTbl();
+    int appendRecvFileTbl(const RecvInfo&);
+    void removeRecvFileTbl(int idx);
+    bool allIdle() const;
 };
 
 #endif // MAINWIDGET_H

@@ -18,6 +18,7 @@
 #include <QString>
 #include <QVector>
 #include <QProgressDialog>
+#include <QProgressBar>
 #include <time.h>
 
 struct RetInfo{
@@ -28,6 +29,17 @@ struct RetInfo{
         this->ErrorCode = ec;
         this->info = info_;
     }
+};
+
+class RecvInfo{
+public:
+    QString name;
+    QString dir_local;
+    QString dir_remote;
+    long long start_pos;
+    int state; // 0 running
+               // 1 paused
+               // 2 stoped
 };
 
 class ClientHandler
@@ -41,11 +53,11 @@ public:
     RetInfo pwd();
     RetInfo pasv();
     RetInfo list();
+    RetInfo rest(long long);
     RetInfo stor(const QString&,
                  QProgressDialog&);
-    RetInfo retr(const QString&,
-                 const QString&,
-                 QProgressDialog&);
+    RetInfo retr(RecvInfo& ri,
+                 QProgressBar* pb);
     RetInfo cwd(const QString&);
     RetInfo rename(const QString&,
                    const QString&);
@@ -71,7 +83,7 @@ public:
 
     private:
         void extract_fileList(const QString&);
-        unsigned long long extract_size(const QString&);
+        long long extract_size(const QString&);
 };
 
 #endif // CLIENTHANDLER_H

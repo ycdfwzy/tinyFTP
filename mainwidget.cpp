@@ -8,6 +8,7 @@
 #include <QInputDialog>
 #include <QFileDialog>
 #include <QProgressDialog>
+#include <QProgressBar>
 #include <algorithm>
 #include <time.h>
 #include <QIcon>
@@ -49,6 +50,8 @@ MainWidget::MainWidget(
     ui->GoBtn->setToolTip("Go to Location");
     ui->MkdBtn->setToolTip("New Floder");
     ui->UpBtn->setToolTip("Upload File");
+
+    initRecvFileTbl();
 }
 
 MainWidget::~MainWidget()
@@ -150,6 +153,7 @@ void MainWidget::setDirList(){
     ui->FileTbl->setHorizontalHeaderLabels(QStringList() << "Name" << "Type" << "Size" << "Last Modification");
     ui->FileTbl->setSelectionBehavior(QAbstractItemView::SelectRows);
 
+    disconnect(ui->FileTbl->horizontalHeader(), SIGNAL(sectionClicked(int)), nullptr, nullptr);
     connect(ui->FileTbl->horizontalHeader(), SIGNAL(sectionClicked(int)),
             this, SLOT(sortRow(int)));
 
@@ -369,23 +373,37 @@ void MainWidget::Download(){
     if (fd.exec() == QFileDialog::Accepted) {
         QString dirname = fd.selectedFiles()[0];
 
-        QProgressDialog pd;
-        pd.setWindowTitle("Receive File");
-        pd.setWindowModality(Qt::NonModal);
-        pd.setCancelButtonText("PAUSE");
-        pd.setLabelText(QString("Downloading ")+menu.name);
-
         ClientHandler *ch = mw->getClientHandler();
+        RecvInfo ri;
+        ri.name = menu.name;
+        ri.dir_local = dirname;
+        ri.dir_remote = ch->curpath;
+        ri.start_pos = 0;
+        ri.state = 0;
+        int idx = appendRecvFileTbl(ri);
+        QProgressBar* pb = qobject_cast<QProgressBar*>(ui->recvFileTbl->cellWidget(idx, 3));
+
+//        rpd = new RetrProgressDialog(menu.name, dirname, ch->curpath, ch, this);
+
         this->transfering = true;
-        RetInfo p = ch->retr(menu.name, dirname, pd);
+        RetInfo p = ch->retr(recvList[idx], pb);
         this->transfering = false;
 
-        if (p.ErrorCode == -ERRORWRITE || p.ErrorCode == -ERRORREAD){
-            QMessageBox::about(this, "Error", "Disconnect unexpectedly!");
-            emit mw->SIGLogoutOK();
+        if (recvList[idx].state == 2){ // stopped
+            removeRecvFileTbl(idx);
         } else
-        if (p.ErrorCode < 0){
-            QMessageBox::about(this, "Error", p.info);
+        if (recvList[idx].state == 0){ // not paused
+            removeRecvFileTbl(idx);
+            if (p.ErrorCode == -ERRORWRITE || p.ErrorCode == -ERRORREAD){
+                QMessageBox::about(this, "Error", "Disconnect unexpectedly!");
+                emit mw->SIGLogoutOK();
+            } else
+            if (p.ErrorCode < 0){
+                QMessageBox::about(this, "Error", p.info);
+            }
+        } else
+        {
+            qDebug() << "You paused " << recvList[idx].name;
         }
     }
 }
@@ -494,4 +512,107 @@ void MainWidget::showFileList(int index){
         item3->setFlags(item3->flags() & (~Qt::ItemIsEditable));
         ui->FileTbl->setItem(0, 3, item3);
     }
+}
+
+void MainWidget::initRecvFileTbl(){
+    recvList.clear();
+    ui->recvFileTbl->clear();
+    ui->recvFileTbl->setColumnCount(4);
+    ui->recvFileTbl->horizontalHeader()->setStretchLastSection(true);
+    ui->recvFileTbl->setHorizontalHeaderLabels(QStringList() << "FileName" << "Stop" << "Pause" << "Progress");
+    ui->recvFileTbl->setSelectionBehavior(QAbstractItemView::SelectRows);
+}
+
+int MainWidget::appendRecvFileTbl(const RecvInfo& ri){
+    int len = recvList.length();
+    ui->recvFileTbl->insertRow(len);
+    recvList.append(ri);
+
+    QPushButton *stopBtn = new QPushButton("STOP", ui->recvFileTbl);
+    QPushButton *pauseBtn = new QPushButton("PAUSE", ui->recvFileTbl);
+    QProgressBar *pb = new QProgressBar(ui->recvFileTbl);
+
+    connect(stopBtn, SIGNAL(clicked()), this, SLOT(RECVBTNCLICKED()));
+    connect(pauseBtn, SIGNAL(clicked()), this, SLOT(RECVBTNCLICKED()));
+    pb->setRange(0, 100);
+    pb->setValue(0);
+
+    QTableWidgetItem *item = new QTableWidgetItem();
+    item->setText(ri.name);
+    item->setFlags(item->flags() & (~Qt::ItemIsEditable));
+    ui->recvFileTbl->setItem(len, 0, item);
+    ui->recvFileTbl->setCellWidget(len, 1, stopBtn);
+    ui->recvFileTbl->setCellWidget(len, 2, pauseBtn);
+    ui->recvFileTbl->setCellWidget(len, 3, pb);
+    return len;
+}
+
+void MainWidget::removeRecvFileTbl(int idx){
+    recvList.removeAt(idx);
+    ui->recvFileTbl->removeRow(idx);
+}
+
+void MainWidget::RECVBTNCLICKED(){
+    QPushButton *senderObj = qobject_cast<QPushButton*>(sender());
+    if (senderObj == nullptr)
+        return;
+    QPoint pos(senderObj->frameGeometry().x(), senderObj->frameGeometry().y());
+    QModelIndex idx = ui->recvFileTbl->indexAt(pos);
+    int row = idx.row();
+    int col = idx.column();
+    if (col == 1){
+        qDebug() << "You Clicked stop! " << ui->recvFileTbl->item(row, 0)->text();
+        if (recvList[row].state == 0){
+            recvList[row].state = 2;
+        }
+    }
+    else
+    if (col == 2){
+        qDebug() << "You Clicked pause! " << ui->recvFileTbl->item(row, 0)->text();
+
+        if (recvList[row].state == 0){
+            recvList[row].state = 1;
+            senderObj->setText("CONTINUE");
+        } else
+        if (recvList[row].state == 1){
+            if (this->transfering){
+                QMessageBox::about(this, "Error", "You are transfering files!");
+            } else
+            {
+                recvList[row].state = 0;
+
+                QProgressBar *pb = qobject_cast<QProgressBar*>(ui->recvFileTbl->cellWidget(row, 3));
+                ClientHandler *ch = mw->getClientHandler();
+
+                this->transfering = true;
+                RetInfo p = ch->retr(recvList[row], pb);
+                this->transfering = false;
+
+                if (recvList[row].state == 2){ // stopped
+                    removeRecvFileTbl(row);
+                } else
+                if (recvList[row].state == 0){ // not paused
+                    removeRecvFileTbl(row);
+                    if (p.ErrorCode == -ERRORWRITE || p.ErrorCode == -ERRORREAD){
+                        QMessageBox::about(this, "Error", "Disconnect unexpectedly!");
+                        emit mw->SIGLogoutOK();
+                    } else
+                    if (p.ErrorCode < 0){
+                        QMessageBox::about(this, "Error", p.info);
+                    }
+                } else
+                {
+                    qDebug() << "You paused " << recvList[row].name;
+                }
+                senderObj->setText("PAUSE");
+            }
+        }
+    }
+}
+
+bool MainWidget::allIdle() const{
+    for (int i = 0; i < recvList.length(); ++i)
+        if (recvList[i].state == 0)
+            return false;
+    return true;
 }
