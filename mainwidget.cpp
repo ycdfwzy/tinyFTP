@@ -10,6 +10,7 @@
 #include <QProgressDialog>
 #include <algorithm>
 #include <time.h>
+#include <QIcon>
 
 MainWidget::MainWidget(
         QString ip, int port, QString name,
@@ -42,6 +43,12 @@ MainWidget::MainWidget(
             this, SLOT(show_Menu(QPoint)));
     connect(ui->FileTbl, SIGNAL(cellDoubleClicked(int, int)),
             this, SLOT(DcCWD(int, int)));
+    ui->GoBtn->setIcon(QApplication::style()->standardIcon(QStyle::SP_ToolBarHorizontalExtensionButton));
+    ui->MkdBtn->setIcon(QApplication::style()->standardIcon(QStyle::SP_FileDialogNewFolder));
+    ui->UpBtn->setIcon(QApplication::style()->standardIcon(QStyle::SP_ArrowUp));
+    ui->GoBtn->setToolTip("Go to Location");
+    ui->MkdBtn->setToolTip("New Floder");
+    ui->UpBtn->setToolTip("Upload File");
 }
 
 MainWidget::~MainWidget()
@@ -327,7 +334,7 @@ void MainWidget::Upload(){
 
         QProgressDialog pd;
         pd.setWindowTitle("Send File");
-        pd.setWindowModality(Qt::WindowModal);
+        pd.setWindowModality(Qt::NonModal);
         pd.setCancelButtonText("STOP");
         pd.setLabelText(QString("Uploading ")+filename);
 
@@ -364,8 +371,8 @@ void MainWidget::Download(){
 
         QProgressDialog pd;
         pd.setWindowTitle("Receive File");
-        pd.setWindowModality(Qt::WindowModal);
-        pd.setCancelButtonText("STOP");
+        pd.setWindowModality(Qt::NonModal);
+        pd.setCancelButtonText("PAUSE");
         pd.setLabelText(QString("Downloading ")+menu.name);
 
         ClientHandler *ch = mw->getClientHandler();

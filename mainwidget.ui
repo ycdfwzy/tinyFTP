@@ -136,7 +136,7 @@
     </rect>
    </property>
    <property name="text">
-    <string>Go</string>
+    <string/>
    </property>
   </widget>
   <widget class="QPushButton" name="MkdBtn">
@@ -149,7 +149,7 @@
     </rect>
    </property>
    <property name="text">
-    <string>MK</string>
+    <string/>
    </property>
   </widget>
   <widget class="QPushButton" name="UpBtn">
@@ -162,7 +162,7 @@
     </rect>
    </property>
    <property name="text">
-    <string>Up</string>
+    <string/>
    </property>
   </widget>
   <widget class="QTableWidget" name="FileTbl">

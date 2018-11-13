@@ -559,6 +559,7 @@ RetInfo ClientHandler::stor(const QString& filename, QProgressDialog& pd){
                           cu->dataCli->sockfd, pd);
         if (!pd.wasCanceled())
             pd.cancel();
+        dropOtherConn_Client(cu);
 
         do{
             p = waitMsg(cu->sockfd, rec, MAXBUFLEN);
