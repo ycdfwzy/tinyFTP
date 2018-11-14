@@ -185,7 +185,7 @@ int CmdHandle(struct Command cmd, struct connClient* cc, char* msg) {
         {
             if (cmd.num_params == 1){
                 strcpy(tmp, cmd.params[0]);
-                toabsPath(tmp, cc->curdir);
+                // toabsPath(tmp, cc->curdir);
                 printf("RETR: abspath %s\n", tmp);
 
                 char rootpath[512];
@@ -256,8 +256,8 @@ int CmdHandle(struct Command cmd, struct connClient* cc, char* msg) {
 
             if (cmd.num_params == 1){
                 strcpy(tmp, cmd.params[0]);
-                getfilename(tmp);
-                toabsPath(tmp, cc->curdir);
+                // getfilename(tmp);
+                // toabsPath(tmp, cc->curdir);
                 printf("abspath %s:\n", tmp);
 
                 char rootpath[512];
@@ -283,7 +283,8 @@ int CmdHandle(struct Command cmd, struct connClient* cc, char* msg) {
                         p = sendMsg(connfd, msg, strlen(msg));
                     } else
                     {
-                        p = recv_file(tmp, fd);
+                        // p = recv_file(tmp, fd);
+                        p = recv_file_at(tmp, fd, cc->start_pos);
                         dropOtherConn_CONN(cc);
 
                         if (p == 0){

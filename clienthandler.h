@@ -31,7 +31,7 @@ struct RetInfo{
     }
 };
 
-class RecvInfo{
+class transInfo{
 public:
     QString name;
     QString dir_local;
@@ -54,9 +54,11 @@ public:
     RetInfo pasv();
     RetInfo list();
     RetInfo rest(long long);
-    RetInfo stor(const QString&,
-                 QProgressDialog&);
-    RetInfo retr(RecvInfo& ri,
+//    RetInfo stor(const QString&,
+//                 QProgressDialog&);
+    RetInfo stor(transInfo& ri,
+                 QProgressBar* pb);
+    RetInfo retr(transInfo& ri,
                  QProgressBar* pb);
     RetInfo cwd(const QString&);
     RetInfo rename(const QString&,

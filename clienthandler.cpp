@@ -490,12 +490,16 @@ RetInfo ClientHandler::remove(const QString& name, const QString& type){
     return RetInfo(NOERROR, QString(rec+idx+4));
 }
 
-int send_file_gui(char* filename, int fd, QProgressDialog& pd){
+int send_file_gui(char* filename, int fd,
+                  transInfo& ri,
+                  QProgressBar *pb){
+    qDebug() << "send_file_gui " << QString(filename);
+
     int p;
     char tmp[MAXBUFLEN];
     struct stat path_stat;
     stat(filename, &path_stat);
-    unsigned long long size = path_stat.st_size;
+    long long size = path_stat.st_size;
     qDebug() << size;
 
     int f = open(filename, O_RDONLY);
@@ -503,20 +507,27 @@ int send_file_gui(char* filename, int fd, QProgressDialog& pd){
         return -ERRORREADFROMDISC;
     }
 
-    unsigned long long cnt = 0;
+    if (lseek(f, (off_t)ri.start_pos, SEEK_SET) == (off_t)-1) {
+        qDebug() << "lseek failed";
+        return -ERRORREADFROMDISC;
+    }
+
+    long long cnt = ri.start_pos;
     ssize_t len;
     while ((len = read(f, tmp, MAXBUFLEN)) > 0){
-        if (pd.wasCanceled()){
+        if (ri.state != 0)
             break;
-        }
+
         p = sendMsg(fd, tmp, len);
         if (p < 0){
             close(f);
             return -ERRORDISCONN;
         }
-        cnt += (unsigned long long)(len);
-        pd.setValue(int(cnt*100/size));
+
+        cnt += (long long)(len);
+        pb->setValue(int(cnt*100/size));
         QCoreApplication::processEvents();
+        ri.start_pos = cnt;
     }
     if (len == -1){
         close(f);
@@ -527,7 +538,7 @@ int send_file_gui(char* filename, int fd, QProgressDialog& pd){
     return 0;
 }
 
-RetInfo ClientHandler::stor(const QString& filename, QProgressDialog& pd){
+RetInfo ClientHandler::stor(transInfo& ri, QProgressBar* pb){
     int p, idx;
 
     RetInfo ret = this->pasv();
@@ -535,7 +546,12 @@ RetInfo ClientHandler::stor(const QString& filename, QProgressDialog& pd){
         return ret;
     }
 
-    sprintf(snd, "STOR %s\r\n", filename.toUtf8().data());
+    ret = this->rest(ri.start_pos);
+    if (ret.ErrorCode < 0){
+        return ret;
+    }
+
+    sprintf(snd, "STOR %s\r\n", toAbsPath(ri.dir_remote, ri.name).toUtf8().data());
     p = sendMsg(cu->sockfd, snd, strlen(snd));
     if (p < 0) {    // error code!
         qDebug() << "sendMsg Error! " << -p;
@@ -556,15 +572,14 @@ RetInfo ClientHandler::stor(const QString& filename, QProgressDialog& pd){
 
     if (startWith(rec+idx, "150 ")){
         qDebug() << "Start transfer...";
-        pd.setMinimum(0);
-        pd.setMaximum(100);
-        pd.setValue(0);
-        pd.show();
+        pb->setRange(0, 100);
+        pb->setValue(0);
+        pb->show();
         QCoreApplication::processEvents();
-        p = send_file_gui(filename.toUtf8().data(),
-                          cu->dataCli->sockfd, pd);
-        if (!pd.wasCanceled())
-            pd.cancel();
+
+        p = send_file_gui(toAbsPath(ri.dir_local, ri.name).toUtf8().data(),
+                          cu->dataCli->sockfd, ri, pb);
+
         dropOtherConn_Client(cu);
 
         do{
@@ -592,7 +607,7 @@ RetInfo ClientHandler::stor(const QString& filename, QProgressDialog& pd){
 }
 
 int recv_file_gui(char* filename, int fd,
-                  RecvInfo& ri,
+                  transInfo& ri,
                   QProgressBar *pb,
                   long long totsz){
     int p;
@@ -601,7 +616,7 @@ int recv_file_gui(char* filename, int fd,
     if (ri.start_pos == 0)
         f = open(filename, O_CREAT|O_WRONLY, S_IRWXU|S_IRWXG|S_IROTH);
     else
-        f = open(filename, O_CREAT|O_WRONLY|O_APPEND, S_IRWXU|S_IRWXG|S_IROTH);
+        f = open(filename, O_WRONLY|O_APPEND, S_IRWXU|S_IRWXG|S_IROTH);
     if (f < 0){
         return -ERRORREADFROMDISC;
     }
@@ -636,7 +651,7 @@ int recv_file_gui(char* filename, int fd,
     return 0;
 }
 
-RetInfo ClientHandler::retr(RecvInfo& ri,
+RetInfo ClientHandler::retr(transInfo& ri,
                             QProgressBar* pb) {
     int idx, p;
 

@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>587</width>
-    <height>525</height>
+    <height>685</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -190,6 +190,9 @@
      <height>121</height>
     </rect>
    </property>
+   <attribute name="verticalHeaderVisible">
+    <bool>false</bool>
+   </attribute>
   </widget>
   <widget class="QLabel" name="RecvLbl">
    <property name="geometry">
@@ -208,6 +211,37 @@
    <property name="text">
     <string>Downloading Files:</string>
    </property>
+  </widget>
+  <widget class="QLabel" name="sendLbl">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>520</y>
+     <width>141</width>
+     <height>21</height>
+    </rect>
+   </property>
+   <property name="font">
+    <font>
+     <pointsize>14</pointsize>
+    </font>
+   </property>
+   <property name="text">
+    <string>Uploading Files:</string>
+   </property>
+  </widget>
+  <widget class="QTableWidget" name="sendFileTbl">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>550</y>
+     <width>561</width>
+     <height>121</height>
+    </rect>
+   </property>
+   <attribute name="verticalHeaderVisible">
+    <bool>false</bool>
+   </attribute>
   </widget>
  </widget>
  <resources/>

@@ -42,6 +42,7 @@ public slots:
     void showFileList(int);
     void show_Menu(QPoint);
     void RECVBTNCLICKED();
+    void SENDBTNCLICKED();
 
 private:
     Ui::MainWidget *ui;
@@ -58,12 +59,18 @@ private:
         QString type;
     } menu;
     bool transfering;
-    QVector<RecvInfo> recvList;
-
+    QVector<transInfo> recvList;
+    QVector<transInfo> sendList;
     void removeFileList();
+
     void initRecvFileTbl();
-    int appendRecvFileTbl(const RecvInfo&);
+    int appendRecvFileTbl(const transInfo&);
     void removeRecvFileTbl(int idx);
+
+    void initSendFileTbl();
+    int appendSendFileTbl(const transInfo&);
+    void removeSendFileTbl(int idx);
+
     bool allIdle() const;
 };
 

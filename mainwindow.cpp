@@ -37,7 +37,7 @@ void MainWindow::LoginOK(QString ip, int port, QString name){
     this->qw = new MainWidget(ip, port, name, this);
     this->setCentralWidget(this->qw);
     this->setWindowTitle(name+QString('@')+ip+QString(':')+QString::number(port));
-    this->setFixedSize(590, 550);
+    this->setFixedSize(590, 710);
     this->isLogin = true;
 }
 
