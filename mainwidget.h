@@ -32,6 +32,7 @@ public slots:
     void Logout();
     void DoCWD();
     void DcCWD(int, int);   // double-clicked
+    void goParent();
     void Rename();
     void Refresh();
     void NewDir();

@@ -343,6 +343,8 @@ bool ClientHandler::extract_file(const QString& strfile, FileInfo &fileInfo, con
     fileInfo.size = size.toLongLong(&isDigital);
     if (!isDigital)
         return false;
+    if (fileInfo.type == "directory")
+        fileInfo.size = -1;
 
     // name
     fileInfo.name = strfile.mid(spaces.back()).simplified();

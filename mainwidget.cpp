@@ -36,6 +36,8 @@ MainWidget::MainWidget(
             this, SLOT(NewDir()));
     connect(ui->UpBtn, SIGNAL(clicked()),
             this, SLOT(Upload()));
+    connect(ui->ParentBtn, SIGNAL(clicked()),
+            this, SLOT(goParent()));
     setDirList();
 
     menu.popMenu = nullptr;
@@ -44,12 +46,18 @@ MainWidget::MainWidget(
             this, SLOT(show_Menu(QPoint)));
     connect(ui->FileTbl, SIGNAL(cellDoubleClicked(int, int)),
             this, SLOT(DcCWD(int, int)));
+//    ui->FileTbl->setMouseTracking(true);
+//    connect(ui->FileTbl, SIGNAL(cellEntered(int, int)),
+//            this, SLOT(DcCWD(int, int)));
+
     ui->GoBtn->setIcon(QApplication::style()->standardIcon(QStyle::SP_ToolBarHorizontalExtensionButton));
     ui->MkdBtn->setIcon(QApplication::style()->standardIcon(QStyle::SP_FileDialogNewFolder));
     ui->UpBtn->setIcon(QApplication::style()->standardIcon(QStyle::SP_ArrowUp));
+    ui->ParentBtn->setIcon(QApplication::style()->standardIcon(QStyle::SP_ArrowBack));
     ui->GoBtn->setToolTip("Go to Location");
     ui->MkdBtn->setToolTip("New Floder");
     ui->UpBtn->setToolTip("Upload File");
+    ui->ParentBtn->setToolTip("Go to Parrent Directory");
 
     initRecvFileTbl();
     initSendFileTbl();
@@ -217,6 +225,9 @@ void MainWidget::DcCWD(int row, int){
         return;
     }
     if (ui->FileTbl->item(row, 1)->text() != "directory"){
+        menu.name = ui->FileTbl->item(row, 0)->text();
+        menu.type = ui->FileTbl->item(row, 1)->text();
+        Download();
         return;
     }
 
@@ -225,6 +236,22 @@ void MainWidget::DcCWD(int row, int){
         ui->LocEdt->setText(ch->curpath+ui->FileTbl->item(row, 0)->text());
     } else
         ui->LocEdt->setText(ch->curpath+QString("/")+ui->FileTbl->item(row, 0)->text());
+    DoCWD();
+}
+
+void MainWidget::goParent(){
+    if (this->transfering){
+        QMessageBox::about(this, "Error", "You are transfering Files!");
+        return;
+    }
+
+    QString loc = ui->LocEdt->text();
+    qDebug() << loc;
+    while (!loc.endsWith("/")){
+        loc = loc.left(loc.length()-1);
+        qDebug() << loc;
+    }
+    ui->LocEdt->setText(loc);
     DoCWD();
 }
 
@@ -447,7 +474,7 @@ void MainWidget::Download(){
 }
 
 void MainWidget::sortRow(int index){
-    if (index < 0 || index > 4){
+    if (index < 0 || index > 2){
         qDebug() << "index = " << index;
         return;
     }

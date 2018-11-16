@@ -34,9 +34,9 @@
   <widget class="QPushButton" name="DisconBtn">
    <property name="geometry">
     <rect>
-     <x>460</x>
+     <x>450</x>
      <y>20</y>
-     <width>111</width>
+     <width>121</width>
      <height>25</height>
     </rect>
    </property>
@@ -121,7 +121,7 @@
     <rect>
      <x>100</x>
      <y>80</y>
-     <width>351</width>
+     <width>321</width>
      <height>25</height>
     </rect>
    </property>
@@ -129,9 +129,9 @@
   <widget class="QPushButton" name="GoBtn">
    <property name="geometry">
     <rect>
-     <x>460</x>
+     <x>430</x>
      <y>80</y>
-     <width>31</width>
+     <width>30</width>
      <height>25</height>
     </rect>
    </property>
@@ -144,7 +144,7 @@
     <rect>
      <x>500</x>
      <y>80</y>
-     <width>31</width>
+     <width>30</width>
      <height>25</height>
     </rect>
    </property>
@@ -155,9 +155,9 @@
   <widget class="QPushButton" name="UpBtn">
    <property name="geometry">
     <rect>
-     <x>540</x>
+     <x>535</x>
      <y>80</y>
-     <width>31</width>
+     <width>30</width>
      <height>25</height>
     </rect>
    </property>
@@ -242,6 +242,19 @@
    <attribute name="verticalHeaderVisible">
     <bool>false</bool>
    </attribute>
+  </widget>
+  <widget class="QPushButton" name="ParentBtn">
+   <property name="geometry">
+    <rect>
+     <x>465</x>
+     <y>80</y>
+     <width>30</width>
+     <height>25</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string/>
+   </property>
   </widget>
  </widget>
  <resources/>
