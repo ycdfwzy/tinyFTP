@@ -399,32 +399,6 @@ int cmd_LISTD(int connfd, char* pathname, char* msg) {
            default:       sprintf(type, "unknown");                break;
            }
 
-        // switch (dir->d_type){
-        //     case DT_BLK:
-        //         strcpy(type, "block device");
-        //         break;
-        //     case DT_CHR:
-        //         strcpy(type, "character device");
-        //         break;
-        //     case DT_DIR:
-        //         strcpy(type, "directory");
-        //         break;
-        //     case DT_FIFO:
-        //         strcpy(type, "FIFO/pipe");
-        //         break;
-        //     case DT_LNK:
-        //         strcpy(type, "symlink");
-        //         break;
-        //     case DT_REG:
-        //         strcpy(type, "regular file");
-        //         break;
-        //     case DT_SOCK:
-        //         strcpy(type, "socket");
-        //         break;
-        //     default:
-        //         strcpy(type, "Unknown");
-        // }
-
         sprintf(msg, "name: \"%s\" type: \"%s\"\t size: \"%lu\"\t last modification: \"%lu\"\n",
         			dir->d_name, type, path_stat.st_size,
                     path_stat.st_mtime
@@ -505,14 +479,25 @@ int cmd_LISTF(int connfd, char* curpath, char* msg) {
 
 int send_list(char* param, int fd) {
 	int p;
-	char msg[MAXBUFLEN];
-	if (is_directory(param)){
-		p = cmd_LISTD(fd, param, msg);
-	} else
-	{
-		p = cmd_LISTF(fd, param, msg);
-	}
-	return p;
+	char msg[MAXBUFLEN<<2];
+	// if (is_directory(param)){
+	// 	p = cmd_LISTD(fd, param, msg);
+	// } else
+	// {
+	// 	p = cmd_LISTF(fd, param, msg);
+	// }
+    char mcmd[MAXBUFLEN];
+    sprintf(mcmd, "ls -l %s", param);
+    printf("%s", mcmd);
+    FILE *stream = popen(mcmd, "r");
+    int len = fread(msg, sizeof(char), sizeof(msg), stream);
+    msg[len] = '\0';
+    p = sendMsg(fd, msg, strlen(msg));
+    if (p < 0){
+        return -ERRORDISCONN;
+    }
+	// return p;
+    return 0;
 }
 
 int recv_list(int fd, char* filelist) {
@@ -530,7 +515,8 @@ int recv_list(int fd, char* filelist) {
         if (filelist != NULL){
             sprintf(filelist, "%s%s", filelist, msg);
         }
-    } while (p > 0);//while (endWith(msg, "Complete!"));//while (strlen(msg) == 0);
+        // printf("%s\n", msg);
+    } while (p > 0);
     return 0;
 }
 

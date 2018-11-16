@@ -546,7 +546,8 @@ void MainWidget::showFileList(int index){
         ui->FileTbl->setItem(0, 2, item2);
 
         QTableWidgetItem *item3 = new QTableWidgetItem();
-        item3->setText(QString(asctime(localtime(&ch->fileList[i].mtime))));
+//        item3->setText(QString(asctime(localtime(&ch->fileList[i].mtime))));
+        item3->setText(ch->fileList[i].mtime);
         item3->setFlags(item3->flags() & (~Qt::ItemIsEditable));
         ui->FileTbl->setItem(0, 3, item3);
     }

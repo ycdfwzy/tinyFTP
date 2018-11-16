@@ -250,37 +250,107 @@ int getContent(const QString& mlist, int x){
     return mlist.length();
 }
 
+bool allSpace(int x, const QStringList& lists){
+    for (const QString& str: lists){
+        if (str.length() <= x || str[x] != ' ')
+            return false;
+    }
+    return true;
+}
+
 void ClientHandler::extract_fileList(const QString& mlist){
     int idx = 0;
     FileInfo fileInfo;
     fileList.clear();
     qDebug() << "fileList.length=" << fileList.length();
     qDebug() << "fileList.size=" << fileList.size();
-    while ((idx = mlist.indexOf("name: \"", idx)) >= 0){
-        int l = getContent(mlist, idx+7);
-        fileInfo.name = mlist.mid(idx+7, l);
-        idx += 7+l;
 
-        idx = mlist.indexOf("type: \"", idx);
-        l = getContent(mlist, idx+7);
-        fileInfo.type = mlist.mid(idx+7, l);
-        idx += 7+l;
+    QStringList mlists = mlist.split('\n');
+    mlists.removeFirst();
+    while (!mlists.empty() && mlists.back() == "")
+        mlists.removeLast();
+    qDebug() << mlists;
 
-        idx = mlist.indexOf("size: \"", idx);
-        l = getContent(mlist, idx+7);
-        fileInfo.size = mlist.mid(idx+7, l).toLongLong();
-        idx += 7+l;
-
-        idx = mlist.indexOf("last modification: \"", idx);
-        l = getContent(mlist, idx+20);
-        fileInfo.mtime = mlist.mid(idx+20, l).toLong();
-        idx += 20+l;
-
-        if (fileInfo.type == "directory")
-            fileInfo.size = -1;
-
-        fileList.append(fileInfo);
+    if (mlists.empty()) return;
+    QVector<int> spaces;
+    for (int i = 0; i < mlists[0].length(); ++i)
+    if (allSpace(i, mlists)){
+        spaces.append(i);
     }
+
+    for (const QString& str: mlists){
+        if (extract_file(str, fileInfo, spaces))
+            fileList.append(fileInfo);
+    }
+
+
+//    while ((idx = mlist.indexOf("name: \"", idx)) >= 0){
+//        int l = getContent(mlist, idx+7);
+//        fileInfo.name = mlist.mid(idx+7, l);
+//        idx += 7+l;
+
+//        idx = mlist.indexOf("type: \"", idx);
+//        l = getContent(mlist, idx+7);
+//        fileInfo.type = mlist.mid(idx+7, l);
+//        idx += 7+l;
+
+//        idx = mlist.indexOf("size: \"", idx);
+//        l = getContent(mlist, idx+7);
+//        fileInfo.size = mlist.mid(idx+7, l).toLongLong();
+//        idx += 7+l;
+
+//        idx = mlist.indexOf("last modification: \"", idx);
+//        l = getContent(mlist, idx+20);
+//        fileInfo.mtime = mlist.mid(idx+20, l).toLong();
+//        idx += 20+l;
+
+//        if (fileInfo.type == "directory")
+//            fileInfo.size = -1;
+
+//        fileList.append(fileInfo);
+//    }
+}
+
+bool ClientHandler::extract_file(const QString& strfile, FileInfo &fileInfo, const QVector<int>& spaces){
+    // type
+    switch (strfile[0].toLatin1()) {
+    case '-':
+        fileInfo.type = "regular file";
+        break;
+    case 'd':
+        fileInfo.type = "directory";
+        break;
+    case 'l':
+        fileInfo.type = "symlink";
+        break;
+    case 's':
+        fileInfo.type = "socket";
+        break;
+    case 'p':
+        fileInfo.type = "FIFO/pipe";
+        break;
+    case 'b':
+        fileInfo.type = "block device";
+        break;
+    default:
+        fileInfo.type = "unknown";
+    }
+
+    // size
+    QString size = strfile.mid(spaces[3], spaces[4]-spaces[3]);
+    size = size.simplified();
+    bool isDigital;
+    fileInfo.size = size.toLongLong(&isDigital);
+    if (!isDigital)
+        return false;
+
+    // name
+    fileInfo.name = strfile.mid(spaces.back()).simplified();
+
+    // mtime
+    fileInfo.mtime = strfile.mid(spaces[4], spaces.back()-spaces[4]);
+
+    return true;
 }
 
 RetInfo ClientHandler::list(){

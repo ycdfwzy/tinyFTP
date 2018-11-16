@@ -72,8 +72,8 @@ public:
         QString name;
         QString type;
         long long size;
-//        QString mtime;
-        time_t mtime;
+        QString mtime;
+//        time_t mtime;
     };
     int order[4]; // 0 disorder
                   // 1 AscendingOrder
@@ -85,6 +85,7 @@ public:
 
     private:
         void extract_fileList(const QString&);
+        bool extract_file(const QString&, FileInfo&, const QVector<int>&);
         long long extract_size(const QString&);
 };
 
