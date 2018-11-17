@@ -504,7 +504,8 @@ int recv_list(int fd, char* filelist) {
 	int p;
 	char msg[MAXBUFLEN];
     if (filelist != NULL){
-        sprintf(filelist, "");
+        // sprintf(filelist, "");
+        filelist[0] = '\0';
     }
 	do{
         p = waitData(fd, msg, MAXBUFLEN);

@@ -246,11 +246,14 @@ void MainWidget::goParent(){
     }
 
     QString loc = ui->LocEdt->text();
-    qDebug() << loc;
+    if (loc != "/" && loc.endsWith("/")){
+        loc = loc.left(loc.length()-1);
+    }
     while (!loc.endsWith("/")){
         loc = loc.left(loc.length()-1);
         qDebug() << loc;
     }
+
     ui->LocEdt->setText(loc);
     DoCWD();
 }
@@ -573,7 +576,6 @@ void MainWidget::showFileList(int index){
         ui->FileTbl->setItem(0, 2, item2);
 
         QTableWidgetItem *item3 = new QTableWidgetItem();
-//        item3->setText(QString(asctime(localtime(&ch->fileList[i].mtime))));
         item3->setText(ch->fileList[i].mtime);
         item3->setFlags(item3->flags() & (~Qt::ItemIsEditable));
         ui->FileTbl->setItem(0, 3, item3);
@@ -741,7 +743,7 @@ void MainWidget::SENDBTNCLICKED(){
             } else
             {
                 sendList[row].state = 0;
-
+                senderObj->setText("PAUSE");
                 QProgressBar *pb = qobject_cast<QProgressBar*>(ui->sendFileTbl->cellWidget(row, 3));
                 ClientHandler *ch = mw->getClientHandler();
 
@@ -768,7 +770,6 @@ void MainWidget::SENDBTNCLICKED(){
                 {
                     qDebug() << "You paused " << sendList[row].name;
                 }
-                senderObj->setText("PAUSE");
             }
         }
     }
