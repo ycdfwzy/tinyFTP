@@ -312,8 +312,10 @@ void ClientHandler::extract_fileList(const QString& mlist){
 }
 
 bool ClientHandler::extract_file(const QString& strfile, FileInfo &fileInfo, const QVector<int>& spaces){
+    QString sf = strfile.simplified();
+    qDebug() << sf;
     // type
-    switch (strfile[0].toLatin1()) {
+    switch (sf[0].toLatin1()) {
     case '-':
         fileInfo.type = "regular file";
         break;
@@ -336,9 +338,10 @@ bool ClientHandler::extract_file(const QString& strfile, FileInfo &fileInfo, con
         fileInfo.type = "unknown";
     }
 
+    QStringList sfl = sf.split(' ');
     // size
-    QString size = strfile.mid(spaces[3], spaces[4]-spaces[3]);
-    size = size.simplified();
+    QString size = sfl[4];//strfile.mid(spaces[3], spaces[4]-spaces[3]);
+//    size = size.simplified();
     bool isDigital;
     fileInfo.size = size.toLongLong(&isDigital);
     if (!isDigital)
@@ -347,10 +350,15 @@ bool ClientHandler::extract_file(const QString& strfile, FileInfo &fileInfo, con
         fileInfo.size = -1;
 
     // name
-    fileInfo.name = strfile.mid(spaces.back()).simplified();
+//    fileInfo.name = strfile.mid(spaces.back()).simplified();
+    fileInfo.name = sfl[8];
+    for (int i = 9; i < sfl.length(); ++i)
+        fileInfo.name += " " + sfl[i];
+//    qDebug() << strfile.mid(spaces.back());
+    qDebug() << fileInfo.name;
 
     // mtime
-    fileInfo.mtime = strfile.mid(spaces[4], spaces.back()-spaces[4]);
+    fileInfo.mtime = sfl[5]+" "+sfl[6]+" "+sfl[7];//strfile.mid(spaces[4], spaces.back()-spaces[4]);
 
     return true;
 }
@@ -359,7 +367,12 @@ RetInfo ClientHandler::list(){
     int p, idx;
     char mlist[MAXBUFLEN<<2];
 
-    RetInfo ret = this->pasv();
+    RetInfo ret = this->type();
+    if (ret.ErrorCode < 0){
+        return ret;
+    }
+
+    ret = this->pasv();
     if (ret.ErrorCode < 0){
         return ret;
     }
@@ -414,6 +427,34 @@ RetInfo ClientHandler::list(){
         dropOtherConn_Client(cu);
         return RetInfo(-ERROROTHERS, QString(rec+idx+4));
     }
+}
+
+RetInfo ClientHandler::type(){
+    int p, idx;
+    sprintf(snd, "TYPE I\r\n");
+    p = sendMsg(cu->sockfd, snd, strlen(snd));
+    if (p < 0) {    // error code!
+        qDebug() << "sendMsg Error!" << -p;
+        dropOtherConn_Client(cu);
+        return RetInfo(p);
+    }
+
+    do{
+        p = waitMsg(cu->sockfd, rec, MAXBUFLEN);
+        if (p < 0) {    // error code!
+            qDebug() << "waitMsg Error!" << -p;
+            dropOtherConn_Client(cu);
+            return RetInfo(p);
+        }
+        idx = indexofDDDS(rec);
+    } while (idx < 0);
+    qDebug() << "From server: " << QString(rec+idx+4);
+
+    if (startWith(rec+idx, "200 ")){
+        return RetInfo(NOERROR, QString(rec+idx+4));
+    }
+
+    return RetInfo(-ERROROTHERS, QString(rec+idx+4));
 }
 
 RetInfo ClientHandler::cwd(const QString& path){
@@ -613,7 +654,12 @@ int send_file_gui(char* filename, int fd,
 RetInfo ClientHandler::stor(transInfo& ri, QProgressBar* pb){
     int p, idx;
 
-    RetInfo ret = this->pasv();
+    RetInfo ret = this->type();
+    if (ret.ErrorCode < 0){
+        return ret;
+    }
+
+    ret = this->pasv();
     if (ret.ErrorCode < 0){
         return ret;
     }
@@ -727,7 +773,12 @@ RetInfo ClientHandler::retr(transInfo& ri,
                             QProgressBar* pb) {
     int idx, p;
 
-    RetInfo ret = this->pasv();
+    RetInfo ret = this->type();
+    if (ret.ErrorCode < 0){
+        return ret;
+    }
+
+    ret = this->pasv();
     if (ret.ErrorCode < 0){
         return ret;
     }

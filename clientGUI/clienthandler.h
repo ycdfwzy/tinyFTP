@@ -53,6 +53,7 @@ public:
     RetInfo pwd();
     RetInfo pasv();
     RetInfo list();
+    RetInfo type();
     RetInfo rest(long long);
 //    RetInfo stor(const QString&,
 //                 QProgressDialog&);

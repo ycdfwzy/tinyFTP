@@ -648,6 +648,7 @@ void MainWidget::RECVBTNCLICKED(){
             } else
             {
                 recvList[row].state = 0;
+                senderObj->setText("PAUSE");
 
                 QProgressBar *pb = qobject_cast<QProgressBar*>(ui->recvFileTbl->cellWidget(row, 3));
                 ClientHandler *ch = mw->getClientHandler();
@@ -672,7 +673,6 @@ void MainWidget::RECVBTNCLICKED(){
                 {
                     qDebug() << "You paused " << recvList[row].name;
                 }
-                senderObj->setText("PAUSE");
             }
         }
     }
