@@ -227,7 +227,8 @@ void* thread_serve_client(void* param){
 }
 
 int main(int argc, char **argv) {
-    int port = 6789;
+    int port = 21;
+    chdir("/tmp");
     if (argc == 3 || argc == 5){
         for (int i = 1; i < argc; i += 2){
             if (strcmp(argv[i], "-port") == 0){

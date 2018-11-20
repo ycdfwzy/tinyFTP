@@ -147,7 +147,7 @@ int waitMsg(int connfd, char* msg, int MAXLEN) {
 		}
 	}
 
-	printf("receive: %s\n", msg);
+//	printf("receive: %s\n", msg);
 	return len;
 }
 
@@ -186,7 +186,7 @@ int sendMsg(int connfd, char* msg, int len){
             p += n;
         }
     }
-    printf("send finished: %s", msg);
+//    printf("send finished: %s", msg);
     // printf("write finished!\n");
     return 0;
 }

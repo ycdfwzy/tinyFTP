@@ -632,6 +632,7 @@ void MainWidget::RECVBTNCLICKED(){
         qDebug() << "You Clicked stop! " << ui->recvFileTbl->item(row, 0)->text();
         if (recvList[row].state == 0){
             recvList[row].state = 2;
+//            removeRecvFileTbl(row);
         }
     }
     else
@@ -640,6 +641,7 @@ void MainWidget::RECVBTNCLICKED(){
 
         if (recvList[row].state == 0){
             recvList[row].state = 1;
+            (qobject_cast<QPushButton*>(ui->recvFileTbl->cellWidget(row, 1)))->setEnabled(false);
             senderObj->setText("CONTINUE");
         } else
         if (recvList[row].state == 1){
@@ -648,6 +650,7 @@ void MainWidget::RECVBTNCLICKED(){
             } else
             {
                 recvList[row].state = 0;
+                (qobject_cast<QPushButton*>(ui->recvFileTbl->cellWidget(row, 1)))->setEnabled(true);
                 senderObj->setText("PAUSE");
 
                 QProgressBar *pb = qobject_cast<QProgressBar*>(ui->recvFileTbl->cellWidget(row, 3));
@@ -728,6 +731,7 @@ void MainWidget::SENDBTNCLICKED(){
         qDebug() << "You Clicked stop! " << ui->sendFileTbl->item(row, 0)->text();
         if (sendList[row].state == 0){
             sendList[row].state = 2;
+//            removeSendFileTbl(row);
         }
     } else
     if (col == 2){
@@ -735,6 +739,7 @@ void MainWidget::SENDBTNCLICKED(){
 
         if (sendList[row].state == 0){
             sendList[row].state = 1;
+            (qobject_cast<QPushButton*>(ui->sendFileTbl->cellWidget(row, 1)))->setEnabled(false);
             senderObj->setText("CONTINUE");
         } else
         if (sendList[row].state == 1){
@@ -743,6 +748,7 @@ void MainWidget::SENDBTNCLICKED(){
             } else
             {
                 sendList[row].state = 0;
+                (qobject_cast<QPushButton*>(ui->sendFileTbl->cellWidget(row, 1)))->setEnabled(true);
                 senderObj->setText("PAUSE");
                 QProgressBar *pb = qobject_cast<QProgressBar*>(ui->sendFileTbl->cellWidget(row, 3));
                 ClientHandler *ch = mw->getClientHandler();

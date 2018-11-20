@@ -60,15 +60,15 @@ RetInfo login(
         return RetInfo(-ERRORLOGIN, QString(msg+idx+4));
     }
 
-    do {
-        sprintf(msg, "USER %s\r\n", username);
-        int len = strlen(msg);
-        p = sendMsg(sockfd, msg, len);
-        if (p < 0) {
-            qDebug() << "sendMsg Error! " << -p;
-            return RetInfo(p);
-        }
+    sprintf(msg, "USER %s\r\n", username);
+    int len = strlen(msg);
+    p = sendMsg(sockfd, msg, len);
+    if (p < 0) {
+        qDebug() << "sendMsg Error! " << -p;
+        return RetInfo(p);
+    }
 
+    do {
         p = waitMsg(sockfd, msg, MAXBUFLEN);
         if (p < 0) {    // error code!
             qDebug() << "waitMsg Error! " << -p;
@@ -83,15 +83,15 @@ RetInfo login(
         return RetInfo(-ERRORLOGIN, QString(msg+idx+4));
     }
 
-    do {
-        sprintf(msg, "PASS %s\r\n", password);
-        int len = strlen(msg);
-        p = sendMsg(sockfd, msg, len);
-        if (p < 0) {
-            qDebug() << "snedMsg Error! " << -p;
-            return RetInfo(p);
-        }
+    sprintf(msg, "PASS %s\r\n", password);
+    len = strlen(msg);
+    p = sendMsg(sockfd, msg, len);
+    if (p < 0) {
+        qDebug() << "snedMsg Error! " << -p;
+        return RetInfo(p);
+    }
 
+    do {
         p = waitMsg(sockfd, msg, MAXBUFLEN);
         if (p < 0) {    // error code!
             qDebug() << "waitMsg Error! " << -p;
