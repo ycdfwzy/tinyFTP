@@ -2,9 +2,9 @@
 
 ## 运行
 
-在`exe/`目录下打开命令行，输入命令`./tinyFTP.sh`运行客户端
+在`exe/`目录下打开命令行，双击`client.AppImage`运行。
 
-> 如果没有运行权限，可以使用`chmod +x tinyFTP.sh`修改运行权限
+> 由于GUI是用linuxdeployqt在Ubuntu18.04下发布的，请在Ubuntu18.04或更高发行版系统上运行。
 
 运行后可以看到如下登录界面：
 

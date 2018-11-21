@@ -107,7 +107,6 @@ CMakeLists.txt.user*
 # others
 *.txt
 *.docx
-*.png
 *.avi
 *.mp4
 *.zip
